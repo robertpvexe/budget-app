@@ -1,0 +1,34 @@
+# Build results
+bin/
+obj/
+build/
+build-verify/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# .NET
+*.dll
+*.exe
+*.pdb
+
+# NuGet
+*.nupkg
+packages/
+
+# App settings (opcjonalnie jeśli masz sekrety)
+appsettings.*.json
+!appsettings.json

@@ -40,3 +40,4 @@ c:\Users\Roberto\Documents\New project\build-verify\api\MonthlyBudget.Api.deps.j
 c:\Users\Roberto\Documents\New project\build-verify\api\MonthlyBudget.Api.runtimeconfig.json
 c:\Users\Roberto\Documents\New project\build-verify\api\MonthlyBudget.Api.dll
 c:\Users\Roberto\Documents\New project\build-verify\api\MonthlyBudget.Api.pdb
+c:\Users\Roberto\Documents\New project\MonthlyBudget.Api\obj\Debug\net9.0\MonthlyBudget.Api.sourcelink.json
