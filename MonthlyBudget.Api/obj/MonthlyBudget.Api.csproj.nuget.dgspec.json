@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj": {}
+    "c:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj": {
+    "c:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj",
+        "projectUniqueName": "c:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj",
         "projectName": "MonthlyBudget.Api",
-        "projectPath": "C:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj",
+        "projectPath": "c:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\MonthlyBudget.Api.csproj",
         "packagesPath": "C:\\Users\\Roberto\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\obj\\",
+        "outputPath": "c:\\Users\\Roberto\\Documents\\New project\\MonthlyBudget.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
