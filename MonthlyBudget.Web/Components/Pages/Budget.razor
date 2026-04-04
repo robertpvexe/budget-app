@@ -1,0 +1,709 @@
+@page "/budget"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using System.Globalization
+
+<PageTitle>Budzet</PageTitle>
+
+<div class="budget-page">
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-overlay">
+            <div class="status-popup @(isStatusError ? "status-popup-error" : "status-popup-success")">
+                @statusMessage
+            </div>
+        </div>
+    }
+
+    @if (showSavePopup)
+    {
+        <div class="save-overlay">
+            <div class="save-modal">
+                <p>Czy zapisać zmiany?</p>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelChanges">Nie</button>
+                    <button type="button" class="btn btn-primary" @onclick="async () => await ConfirmSave()">Tak</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (currentBudget is not null)
+    {
+        <section class="budget-card">
+            <div class="position-relative @(isEditMode ? "edit-mode-active" : "")">
+                <button type="button" class="btn @(isEditMode ? "btn-outline-warning" : "btn-outline-secondary") btn-sm position-absolute"
+                        style="top: 10px; right: 10px;"
+                        @onclick="ToggleEditMode">
+                    ⚙️
+                </button>
+
+                <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="letter-spacing:1px;">
+                    Podsumowanie miesiąca
+                </h3>
+
+                @if (isEditMode)
+                {
+                    <div class="edit-mode-overlay">
+                        <div class="edit-mode-banner d-flex align-items-center justify-content-between">
+                            <span>✏️ Tryb edycji włączony</span>
+                            <button type="button" class="btn-close ms-3" @onclick="ToggleEditMode"></button>
+                        </div>
+                    </div>
+                }
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card p-3 text-center shadow-sm">
+                            <div class="text-muted">Przychód</div>
+                            @if (currentBudget != null)
+                            {
+                                if (isEditMode)
+                                {
+                                    <input type="number"
+                                           class="form-control text-center fw-bold"
+                                           style="max-width: 120px; margin: 0 auto;"
+                                           @bind="currentBudget.Income" />
+                                }
+                                else
+                                {
+                                    <div class="fs-4 fw-bold">
+                                        @currentBudget.Income PLN
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card p-3 text-center shadow-sm">
+                            <div class="text-muted">Wydatki</div>
+                            <div class="fs-4 fw-bold">@currentBudget.TotalExpenses PLN</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card p-3 text-center shadow-sm">
+                            <div class="text-muted">Pozostało</div>
+                            <div class="fs-4 fw-bold">@currentBudget.Remaining PLN</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card p-3 text-center shadow-sm">
+                            <div class="text-muted">Procent</div>
+                            <div class="fs-4 fw-bold">@currentBudget.Percentage %</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+
+    <section class="budget-card">
+        <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="letter-spacing:1px;">
+            Filtry
+        </h3>
+
+        <form>
+            <div class="d-flex justify-content-center mt-3 mb-4">
+                <div style="max-width: 1000px; width: 100%;">
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Rok</label>
+                            <select class="form-select" @bind="selectedYear">
+                                @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
+                                {
+                                    <option value="@year">@year</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Miesiąc</label>
+                            <select class="form-select" @bind="selectedMonth">
+                                <option value="1">Styczeń</option>
+                                <option value="2">Luty</option>
+                                <option value="3">Marzec</option>
+                                <option value="4">Kwiecień</option>
+                                <option value="5">Maj</option>
+                                <option value="6">Czerwiec</option>
+                                <option value="7">Lipiec</option>
+                                <option value="8">Sierpień</option>
+                                <option value="9">Wrzesień</option>
+                                <option value="10">Październik</option>
+                                <option value="11">Listopad</option>
+                                <option value="12">Grudzień</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Kategoria</label>
+                            <select class="form-select" @bind="selectedCategory">
+                                <option value="">Wszystkie</option>
+                                @foreach (var cat in currentBudget?.Expenses.Select(e => e.Category).Distinct() ?? [])
+                                {
+                                    <option value="@cat">@cat</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Od</label>
+                            <input type="number" class="form-control" @bind="minAmount" />
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Do</label>
+                            <input type="number" class="form-control" @bind="maxAmount" />
+                        </div>
+
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-primary w-100" @onclick="LoadSelectedBudget">
+                                Pokaż
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="budget-card">
+        <h2>Dodaj budzet</h2>
+
+        <form @onsubmit="CreateBudgetAsync" @onsubmit:preventDefault>
+            <div class="budget-grid">
+                <div>
+                    <label class="form-label" for="month">Miesiac</label>
+                    <input id="month" class="form-control" placeholder="2026-03" @bind="newBudgetMonth" />
+                </div>
+
+                <div>
+                    <label class="form-label" for="income">Przychod</label>
+                    <input id="income" class="form-control" placeholder="6500" @bind="newBudgetIncomeText" />
+                </div>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Dodaj budzet</button>
+        </form>
+    </section>
+
+    <section class="budget-card">
+        <h2>Dodaj wydatek</h2>
+
+        <form>
+            <div class="budget-grid">
+                <div>
+                    <label class="form-label" for="expense-name">Nazwa</label>
+                    <input id="expense-name" class="form-control" @bind="name" />
+                </div>
+
+                <div>
+                    <label class="form-label" for="expense-amount">Kwota</label>
+                    <input id="expense-amount" class="form-control" type="number" step="0.01" @bind="amount" />
+                </div>
+
+                <div>
+                    <label class="form-label" for="expense-category">Kategoria</label>
+                    <select id="expense-category" class="form-control" @bind="category">
+                        @foreach (var expenseCategory in expenseCategories)
+                        {
+                            <option value="@expenseCategory">@expenseCategory</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-success" type="button" @onclick="AddExpense" disabled="@(currentBudget is null)">Dodaj wydatek</button>
+        </form>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage))
+    {
+        <div class="budget-status">@lastExpenseClickMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(expenseAddedMessage))
+    {
+        <div class="budget-status">@expenseAddedMessage</div>
+    }
+
+    @if (currentBudget is not null)
+    {
+        <section class="budget-card">
+            <div class="table-header">
+                <h2>Lista wydatkow</h2>
+                <span>Budzet: @currentBudget.Month</span>
+            </div>
+
+            <table class="table budget-table">
+                <thead>
+                    <tr>
+                        <th>Nazwa</th>
+                        <th>Kategoria</th>
+                        <th>Kwota</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!FilteredExpenses.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="empty-row">Brak wydatkow.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var expense in FilteredExpenses)
+                        {
+                            <tr>
+                                <td>@expense.Name</td>
+                                <td>@expense.Category</td>
+                                <td>@FormatCurrency(expense.Amount)</td>
+                                <td>
+                                    <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usun</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+</div>
+
+@code {
+    private readonly List<int> availableYears = Enumerable.Range(DateTime.Now.Year - 4, 5).Reverse().ToList();
+    private readonly List<MonthOption> monthOptions =
+    [
+        new(1, "1"),
+        new(2, "2"),
+        new(3, "3"),
+        new(4, "4"),
+        new(5, "5"),
+        new(6, "6"),
+        new(7, "7"),
+        new(8, "8"),
+        new(9, "9"),
+        new(10, "10"),
+        new(11, "11"),
+        new(12, "12")
+    ];
+    private int currentBudgetId = 1;
+    private int selectedYear = DateTime.Now.Year;
+    private int selectedMonth = DateTime.Now.Month;
+    private string newBudgetMonth = DateTime.Today.ToString("yyyy-MM");
+    private string newBudgetIncomeText = string.Empty;
+    private string name = string.Empty;
+    private decimal amount;
+    private readonly List<string> expenseCategories = ["Stałe", "Jedzenie", "Transport", "Rozrywka", "Inne"];
+    private string category = "Stałe";
+    private string statusMessage = string.Empty;
+    private bool isStatusError;
+    private int statusMessageVersion;
+    private string lastExpenseClickMessage = string.Empty;
+    private string expenseAddedMessage = string.Empty;
+    private bool isEditMode = false;
+    private decimal originalIncome;
+    private bool showSavePopup = false;
+    private string? selectedCategory;
+    private decimal? minAmount;
+    private decimal? maxAmount;
+    private BudgetDetailsResponse? currentBudget;
+    private IEnumerable<ExpenseDto> FilteredExpenses =>
+        currentBudget?.Expenses
+            .Where(e =>
+                (string.IsNullOrEmpty(selectedCategory) || e.Category == selectedCategory) &&
+                (!minAmount.HasValue || e.Amount >= minAmount.Value) &&
+                (!maxAmount.HasValue || e.Amount <= maxAmount.Value)
+            ) ?? Enumerable.Empty<ExpenseDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var now = DateTime.Now;
+        selectedYear = now.Year;
+        selectedMonth = now.Month;
+
+        await ShowBudget();
+    }
+
+    private async Task CreateBudgetAsync()
+    {
+        ClearStatusMessage();
+
+        if (!TryParseDecimal(newBudgetIncomeText, out var income))
+        {
+            await ShowStatusMessageAsync("Nieprawidlowa wartosc przychodu.", true);
+            return;
+        }
+
+        Console.WriteLine("FULL URL: http://localhost:5226/api/budget");
+        var response = await Http.PostAsJsonAsync("http://localhost:5226/api/budget", new CreateMonthlyBudgetRequest
+        {
+            Month = newBudgetMonth,
+            Income = income
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            await ShowStatusMessageAsync("Nie udalo sie dodac budzetu.", true);
+            return;
+        }
+
+        var createdBudget = await response.Content.ReadFromJsonAsync<BudgetDto>();
+
+        if (createdBudget is null)
+        {
+            await ShowStatusMessageAsync("API zwrocilo pusty wynik.", true);
+            return;
+        }
+
+        currentBudgetId = createdBudget.Id;
+        await ShowBudget();
+        await ShowStatusMessageAsync("Budzet zostal dodany.", false);
+    }
+
+    private async Task AddExpense()
+    {
+        ClearStatusMessage();
+        lastExpenseClickMessage = $"Klik wykryty: {DateTime.Now:HH:mm:ss}";
+        Console.WriteLine("Klik dziala");
+
+        try
+        {
+            var budgetId = currentBudgetId;
+
+            if (budgetId == 0)
+            {
+                Console.WriteLine("Brak budgetId");
+                await ShowStatusMessageAsync("Najpierw dodaj budzet.", true);
+                return;
+            }
+
+            if (amount <= 0)
+            {
+                Console.WriteLine("Nieprawidlowa kwota");
+                await ShowStatusMessageAsync("Nieprawidlowa wartosc wydatku.", true);
+                return;
+            }
+
+            var expense = new AddExpenseRequest
+            {
+                Name = name,
+                Amount = amount,
+                Category = category
+            };
+
+            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{budgetId}/expense");
+            var response = await Http.PostAsJsonAsync($"http://localhost:5226/api/budget/{budgetId}/expense", expense);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine(response.StatusCode);
+                await ShowStatusMessageAsync("Nie udalo sie dodac wydatku.", true);
+                return;
+            }
+
+            name = string.Empty;
+            amount = 0;
+            category = expenseCategories[0];
+
+            await ShowBudget();
+            await ShowExpenseAddedMessageAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            await ShowStatusMessageAsync("Wystapil blad podczas dodawania wydatku.", true);
+        }
+    }
+
+    private async Task DeleteExpense(int expenseId)
+    {
+        ClearStatusMessage();
+
+        var budgetId = currentBudget?.Id ?? currentBudgetId;
+
+        if (budgetId == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine($"Delete expenseId: {expenseId}");
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunac?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{budgetId}/expense/{expenseId}");
+            var response = await Http.DeleteAsync($"http://localhost:5226/api/budget/{budgetId}/expense/{expenseId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine(response.StatusCode);
+                await ShowStatusMessageAsync("Nie udalo sie usunac wydatku.", true);
+                return;
+            }
+
+            await ShowBudget();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            await ShowStatusMessageAsync("Wystapil blad podczas usuwania wydatku.", true);
+        }
+    }
+
+    private async Task ShowBudget()
+    {
+        var month = $"{selectedYear}-{selectedMonth:D2}";
+        Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/by-month/{month}");
+
+        try
+        {
+            var response = await Http.GetAsync($"http://localhost:5226/api/budget/by-month/{month}");
+
+            Console.WriteLine($"STATUS: {response.StatusCode}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                currentBudget = null;
+                await ShowStatusMessageAsync("Nie znaleziono budzetu dla wybranego miesiaca.", true);
+                return;
+            }
+
+            var data = await response.Content.ReadFromJsonAsync<BudgetDetailsResponse>();
+
+            if (data is null)
+            {
+                currentBudget = null;
+                await ShowStatusMessageAsync("Brak danych.", true);
+                return;
+            }
+
+            currentBudget = data;
+            currentBudgetId = data.Id;
+            ClearStatusMessage();
+
+            Console.WriteLine($"LOADED BUDGET ID: {currentBudget.Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            await ShowStatusMessageAsync("Blad podczas pobierania danych.", true);
+        }
+    }
+
+    private async Task LoadSelectedBudget()
+    {
+        await ShowBudget();
+    }
+
+    private async Task ShowExpenseAddedMessageAsync()
+    {
+        expenseAddedMessage = "Wydano dodany";
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2000);
+        expenseAddedMessage = string.Empty;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleEditMode()
+    {
+        if (!isEditMode)
+        {
+            originalIncome = currentBudget?.Income ?? 0;
+            isEditMode = true;
+            return;
+        }
+
+        if (currentBudget != null && currentBudget.Income != originalIncome)
+        {
+            showSavePopup = true;
+            return;
+        }
+
+        isEditMode = false;
+    }
+
+    private async Task ConfirmSave()
+    {
+        Console.WriteLine("SAVE CLICKED");
+
+        if (currentBudget != null)
+        {
+            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{currentBudget.Id}");
+            var response = await Http.PutAsJsonAsync(
+                $"http://localhost:5226/api/budget/{currentBudget.Id}",
+                new { income = currentBudget.Income }
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                statusMessage = "Błąd zapisu.";
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
+        showSavePopup = false;
+        isEditMode = false;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void CancelChanges()
+    {
+        if (currentBudget != null)
+        {
+            currentBudget.Income = originalIncome;
+        }
+
+        showSavePopup = false;
+        isEditMode = false;
+    }
+
+    private async Task ShowStatusMessageAsync(string message, bool isError)
+    {
+        statusMessageVersion++;
+        var version = statusMessageVersion;
+        statusMessage = message;
+        isStatusError = isError;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2500);
+
+        if (version == statusMessageVersion)
+        {
+            statusMessage = string.Empty;
+            isStatusError = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ClearStatusMessage()
+    {
+        statusMessageVersion++;
+        statusMessage = string.Empty;
+        isStatusError = false;
+    }
+
+    private static bool TryParseDecimal(string input, out decimal value)
+    {
+        return decimal.TryParse(input, NumberStyles.Number, CultureInfo.CurrentCulture, out value)
+            || decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return value.ToString("0.00", CultureInfo.InvariantCulture);
+    }
+
+    private sealed record MonthOption(int Value, string Label);
+}
+
+<style>
+    .edit-mode-active {
+        outline: 2px dashed #f59e0b;
+        outline-offset: 4px;
+        border-radius: 10px;
+    }
+
+    .edit-mode-overlay {
+        position: fixed;
+        top: 100px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 9999;
+        pointer-events: none;
+    }
+
+    .edit-mode-banner {
+        background-color: #fff3cd;
+        border: 1px solid #ffe69c;
+        border-radius: 10px;
+        padding: 14px 20px;
+        min-width: 320px;
+        max-width: 550px;
+        width: fit-content;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        animation: fadeSlide 0.3s ease;
+        pointer-events: auto;
+    }
+
+    @@keyframes fadeSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .save-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .save-modal {
+        background: white;
+        padding: 20px 25px;
+        border-radius: 10px;
+        min-width: 280px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        text-align: center;
+    }
+
+    .status-overlay {
+        position: fixed;
+        top: 24px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 10000;
+        pointer-events: none;
+    }
+
+    .status-popup {
+        min-width: 260px;
+        max-width: 520px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        text-align: center;
+        animation: fadeSlide 0.3s ease;
+    }
+
+    .status-popup-success {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+    }
+
+    .status-popup-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+    }
+</style>

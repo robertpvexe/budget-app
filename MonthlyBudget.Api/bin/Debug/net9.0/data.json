@@ -1,0 +1,48 @@
+[
+  {
+    "Id": 1,
+    "Month": "2026-03",
+    "Income": 5000,
+    "Expenses": [
+      {
+        "Id": 6,
+        "Name": "Kawa",
+        "Amount": 50,
+        "Category": "Jedzenie",
+        "MonthlyBudgetId": 1
+      },
+      {
+        "Id": 8,
+        "Name": "kwiaty",
+        "Amount": 69,
+        "Category": "Rozrywka",
+        "MonthlyBudgetId": 1
+      },
+      {
+        "Id": 9,
+        "Name": "Rurki z kremem",
+        "Amount": 10,
+        "Category": "Transport",
+        "MonthlyBudgetId": 1
+      }
+    ]
+  },
+  {
+    "Id": 2,
+    "Month": "2026-04",
+    "Income": 6500,
+    "Expenses": []
+  },
+  {
+    "Id": 3,
+    "Month": "2026-02",
+    "Income": 6500,
+    "Expenses": []
+  },
+  {
+    "Id": 4,
+    "Month": "2026-01",
+    "Income": 1,
+    "Expenses": []
+  }
+]
