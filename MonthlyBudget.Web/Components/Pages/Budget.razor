@@ -17,91 +17,6 @@
     }
 
     <section class="budget-card">
-        <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="letter-spacing:1px;">
-            Filtry
-        </h3>
-
-        <form>
-            <div class="d-flex justify-content-center mt-3 mb-4">
-                <div style="max-width: 1000px; width: 100%;">
-                    <div class="row align-items-end g-3">
-                        <div class="col-md-2">
-                            <label class="form-label">Rok</label>
-                            <select class="form-select" @bind="selectedYear">
-                                @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
-                                {
-                                    <option value="@year">@year</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label">Miesiąc</label>
-                            <select class="form-select" @bind="selectedMonth">
-                                <option value="1">Styczeń</option>
-                                <option value="2">Luty</option>
-                                <option value="3">Marzec</option>
-                                <option value="4">Kwiecień</option>
-                                <option value="5">Maj</option>
-                                <option value="6">Czerwiec</option>
-                                <option value="7">Lipiec</option>
-                                <option value="8">Sierpień</option>
-                                <option value="9">Wrzesień</option>
-                                <option value="10">Październik</option>
-                                <option value="11">Listopad</option>
-                                <option value="12">Grudzień</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label">Kategoria</label>
-                            <select class="form-select" @bind="selectedCategoryId">
-                                <option value="">Wszystkie</option>
-                                @foreach (var cat in categories)
-                                {
-                                    <option value="@cat.Id">@cat.Name</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label">Od</label>
-                            <div class="input-group budget-currency-group amount-field-group">
-                                <input type="number"
-                                       class="form-control text-end amount-number-input"
-                                       min="0.01"
-                                       max="999999999"
-                                       step="0.01"
-                                       @bind="minAmount" />
-                                <span class="input-group-text">PLN</span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label">Do</label>
-                            <div class="input-group budget-currency-group amount-field-group">
-                                <input type="number"
-                                       class="form-control text-end amount-number-input"
-                                       min="0.01"
-                                       max="999999999"
-                                       step="0.01"
-                                       @bind="maxAmount" />
-                                <span class="input-group-text">PLN</span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-primary w-100" @onclick="LoadSelectedBudget">
-                                Pokaż
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </section>
-
-    <section class="budget-card">
         <h2>Dodaj wydatek</h2>
 
         <form>
@@ -153,6 +68,82 @@
     @if (currentBudget is not null)
     {
         <section class="budget-card">
+            <form class="mb-3">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap budget-filters-row">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" @bind="selectedYear">
+                            <option value="@selectedYear" disabled>Rok</option>
+                            @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
+                            {
+                                <option value="@year">@year</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" @bind="selectedMonth">
+                            <option value="@selectedMonth" disabled>Miesiąc</option>
+                            <option value="1">Styczeń</option>
+                            <option value="2">Luty</option>
+                            <option value="3">Marzec</option>
+                            <option value="4">Kwiecień</option>
+                            <option value="5">Maj</option>
+                            <option value="6">Czerwiec</option>
+                            <option value="7">Lipiec</option>
+                            <option value="8">Sierpień</option>
+                            <option value="9">Wrzesień</option>
+                            <option value="10">Październik</option>
+                            <option value="11">Listopad</option>
+                            <option value="12">Grudzień</option>
+                        </select>
+                    </div>
+
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" @bind="selectedCategoryId">
+                            <option value="">Kategoria</option>
+                            @foreach (var cat in categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-auto">
+                        <div class="input-group budget-currency-group amount-field-group amount-field-group-sm">
+                            <input type="number"
+                                   class="form-control form-control-sm text-end amount-number-input"
+                                   min="0.01"
+                                   max="999999999"
+                                   step="0.01"
+                                   placeholder="Od"
+                                   @bind="minAmount" />
+                            <span class="input-group-text">PLN</span>
+                        </div>
+                    </div>
+
+                    <div class="col-auto">
+                        <div class="input-group budget-currency-group amount-field-group amount-field-group-sm">
+                            <input type="number"
+                                   class="form-control form-control-sm text-end amount-number-input"
+                                   min="0.01"
+                                   max="999999999"
+                                   step="0.01"
+                                   placeholder="Do"
+                                   @bind="maxAmount" />
+                            <span class="input-group-text">PLN</span>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div class="col-auto ms-auto">
+                        <button type="button" class="btn btn-primary btn-sm" @onclick="LoadSelectedBudget">
+                            Pokaż
+                        </button>
+                    </div>
+                </div>
+            </form>
+
             <div class="table-header">
                 <h2>Lista wydatków</h2>
                 <span>Budżet: @currentBudget.Month</span>
@@ -162,6 +153,7 @@
                 <thead>
                     <tr>
                         <th>Nazwa</th>
+                        <th>Data</th>
                         <th>Kategoria</th>
                         <th>Kwota</th>
                         <th>Akcje</th>
@@ -171,7 +163,7 @@
                     @if (!FilteredExpenses.Any())
                     {
                         <tr>
-                            <td colspan="4" class="empty-row">Brak wydatków.</td>
+                            <td colspan="5" class="empty-row">Brak wydatków.</td>
                         </tr>
                     }
                     else
@@ -183,6 +175,12 @@
                                 {
                                     <td class="budget-expense-cell">
                                         <input class="form-control form-control-sm expense-edit-control" type="text" @bind="editingName" />
+                                    </td>
+                                    <td class="budget-expense-cell">
+                                        <input class="form-control form-control-sm expense-edit-control"
+                                               type="date"
+                                               @bind="editingCreatedAt"
+                                               @bind:format="yyyy-MM-dd" />
                                     </td>
                                     <td class="budget-expense-cell">
                                         <select @bind="editingCategoryId" class="form-control form-control-sm expense-edit-control">
@@ -207,6 +205,7 @@
                                 else
                                 {
                                     <td class="budget-expense-cell">@expense.Name</td>
+                                    <td class="budget-expense-cell">@expense.CreatedAt.ToString("dd.MM.yyyy")</td>
                                     <td class="budget-expense-cell">
                                         @if (expense.CategoryId == 0)
                                         {
@@ -261,6 +260,7 @@
     private int? editingExpenseId;
     private string editingName = string.Empty;
     private decimal editingAmount;
+    private DateTime editingCreatedAt;
     private int editingCategoryId;
     private BudgetDetailsResponse? currentBudget;
 
@@ -378,6 +378,7 @@
         editingExpenseId = expense.Id;
         editingName = expense.Name;
         editingAmount = expense.Amount;
+        editingCreatedAt = expense.CreatedAt;
         editingCategoryId = expense.CategoryId;
     }
 
@@ -399,6 +400,7 @@
             {
                 name = editingName,
                 amount = editingAmount,
+                createdAt = editingCreatedAt,
                 categoryId = editingCategoryId == 0 ? 0 : editingCategoryId
             }
         );
@@ -564,23 +566,28 @@
 
     .budget-table th:nth-child(1),
     .budget-table td:nth-child(1) {
-        width: 35%;
+        width: 27%;
     }
 
     .budget-table th:nth-child(2),
     .budget-table td:nth-child(2) {
-        width: 25%;
+        width: 16%;
     }
 
     .budget-table th:nth-child(3),
     .budget-table td:nth-child(3) {
-        width: 15%;
-        text-align: right;
+        width: 22%;
     }
 
     .budget-table th:nth-child(4),
     .budget-table td:nth-child(4) {
-        width: 25%;
+        width: 15%;
+        text-align: right;
+    }
+
+    .budget-table th:nth-child(5),
+    .budget-table td:nth-child(5) {
+        width: 20%;
     }
 
     .budget-table td {
@@ -589,7 +596,7 @@
         text-overflow: ellipsis;
     }
 
-    .budget-table td:nth-child(4) {
+    .budget-table td:nth-child(5) {
         overflow: visible;
         white-space: nowrap;
         display: flex;
@@ -598,7 +605,7 @@
         justify-content: flex-start;
     }
 
-    .budget-table td:nth-child(4) .btn {
+    .budget-table td:nth-child(5) .btn {
         flex: 0 0 auto;
         white-space: nowrap;
     }
@@ -626,8 +633,8 @@
         line-height: 1.2;
     }
 
-    .budget-table td:nth-child(3) .expense-edit-control,
-    .budget-table td:nth-child(3) input[type="number"] {
+    .budget-table td:nth-child(4) .expense-edit-control,
+    .budget-table td:nth-child(4) input[type="number"] {
         text-align: right;
     }
 
@@ -635,9 +642,20 @@
         font-size: 14px;
     }
 
+    .budget-filters-row .form-select,
+    .budget-filters-row .form-control,
+    .budget-filters-row .input-group {
+        margin-bottom: 0;
+    }
+
     .amount-field-group {
         width: min(100%, 170px);
         max-width: 170px;
+    }
+
+    .amount-field-group-sm {
+        width: min(100%, 150px);
+        max-width: 150px;
     }
 
     .amount-number-input {

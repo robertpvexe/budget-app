@@ -43,6 +43,11 @@ public class BudgetService : IBudgetService
 
             foreach (var expense in budget.Expenses)
             {
+                if (expense.CreatedAt == default)
+                {
+                    expense.CreatedAt = DateTime.Now;
+                }
+
                 expense.MonthlyBudgetId = budget.Id;
                 expense.MonthlyBudget = budget;
                 expense.Category = _db.Categories.FirstOrDefault(c => c.Id == expense.CategoryId);
@@ -108,6 +113,7 @@ public class BudgetService : IBudgetService
                 Id = _nextExpenseId++,
                 Name = expense.Name,
                 Amount = expense.Amount,
+                CreatedAt = DateTime.Now,
                 CategoryId = category?.Id ?? 0,
                 Category = category,
                 MonthlyBudgetId = budget.Id,
@@ -229,6 +235,7 @@ public class BudgetService : IBudgetService
 
             expense.Name = request.Name;
             expense.Amount = request.Amount;
+            expense.CreatedAt = request.CreatedAt;
             expense.CategoryId = category?.Id ?? 0;
             expense.Category = category;
 
@@ -275,6 +282,7 @@ public class BudgetService : IBudgetService
                     Id = e.Id,
                     Name = e.Name,
                     Amount = e.Amount,
+                    CreatedAt = e.CreatedAt,
                     CategoryId = e.CategoryId,
                     Category = e.Category ?? _db.Categories.FirstOrDefault(c => c.Id == e.CategoryId),
                     MonthlyBudgetId = e.MonthlyBudgetId
@@ -346,6 +354,7 @@ public class BudgetService : IBudgetService
                     Id = expense.Id,
                     Name = expense.Name,
                     Amount = expense.Amount,
+                    CreatedAt = expense.CreatedAt,
                     CategoryId = expense.CategoryId,
                     Category = expense.Category ?? _db.Categories.FirstOrDefault(c => c.Id == expense.CategoryId),
                     MonthlyBudgetId = expense.MonthlyBudgetId
