@@ -1,4 +1,4 @@
-namespace MonthlyBudget.Api.Models.Requests;
+namespace MonthlyBudget.Api;
 
 public class UpdateIncomeRequest
 {

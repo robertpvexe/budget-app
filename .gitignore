@@ -32,3 +32,4 @@ packages/
 # App settings (opcjonalnie jeśli masz sekrety)
 appsettings.*.json
 !appsettings.json
+.fake

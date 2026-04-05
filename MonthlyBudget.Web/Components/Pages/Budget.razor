@@ -62,15 +62,20 @@
                             {
                                 if (isEditMode)
                                 {
-                                    <input type="number"
-                                           class="form-control text-center fw-bold"
-                                           style="max-width: 120px; margin: 0 auto;"
-                                           @bind="currentBudget.Income" />
+                                    <div class="input-group budget-currency-group amount-field-group mx-auto">
+                                        <input type="number"
+                                               class="form-control text-end fw-bold amount-number-input"
+                                               min="0.01"
+                                               max="999999999"
+                                               step="0.01"
+                                               @bind="currentBudget.Income" />
+                                        <span class="input-group-text">PLN</span>
+                                    </div>
                                 }
                                 else
                                 {
                                     <div class="fs-4 fw-bold">
-                                        @currentBudget.Income PLN
+                                        @FormatCurrency(currentBudget.Income)
                                     </div>
                                 }
                             }
@@ -80,14 +85,14 @@
                     <div class="col-md-3">
                         <div class="card p-3 text-center shadow-sm">
                             <div class="text-muted">Wydatki</div>
-                            <div class="fs-4 fw-bold">@currentBudget.TotalExpenses PLN</div>
+                            <div class="fs-4 fw-bold">@FormatCurrency(currentBudget.TotalExpenses)</div>
                         </div>
                     </div>
 
                     <div class="col-md-3">
                         <div class="card p-3 text-center shadow-sm">
                             <div class="text-muted">Pozostało</div>
-                            <div class="fs-4 fw-bold">@currentBudget.Remaining PLN</div>
+                            <div class="fs-4 fw-bold">@FormatCurrency(currentBudget.Remaining)</div>
                         </div>
                     </div>
 
@@ -141,23 +146,39 @@
 
                         <div class="col-md-3">
                             <label class="form-label">Kategoria</label>
-                            <select class="form-select" @bind="selectedCategory">
+                            <select class="form-select" @bind="selectedCategoryId">
                                 <option value="">Wszystkie</option>
-                                @foreach (var cat in currentBudget?.Expenses.Select(e => e.Category).Distinct() ?? [])
+                                @foreach (var cat in categories)
                                 {
-                                    <option value="@cat">@cat</option>
+                                    <option value="@cat.Id">@cat.Name</option>
                                 }
                             </select>
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label">Od</label>
-                            <input type="number" class="form-control" @bind="minAmount" />
+                            <div class="input-group budget-currency-group amount-field-group">
+                                <input type="number"
+                                       class="form-control text-end amount-number-input"
+                                       min="0.01"
+                                       max="999999999"
+                                       step="0.01"
+                                       @bind="minAmount" />
+                                <span class="input-group-text">PLN</span>
+                            </div>
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label">Do</label>
-                            <input type="number" class="form-control" @bind="maxAmount" />
+                            <div class="input-group budget-currency-group amount-field-group">
+                                <input type="number"
+                                       class="form-control text-end amount-number-input"
+                                       min="0.01"
+                                       max="999999999"
+                                       step="0.01"
+                                       @bind="maxAmount" />
+                                <span class="input-group-text">PLN</span>
+                            </div>
                         </div>
 
                         <div class="col-md-1">
@@ -183,7 +204,10 @@
 
                 <div>
                     <label class="form-label" for="income">Przychod</label>
-                    <input id="income" class="form-control" placeholder="6500" @bind="newBudgetIncomeText" />
+                    <div class="input-group budget-currency-group amount-field-group">
+                        <input id="income" class="form-control" placeholder="6500" @bind="newBudgetIncomeText" />
+                        <span class="input-group-text">PLN</span>
+                    </div>
                 </div>
             </div>
 
@@ -203,15 +227,24 @@
 
                 <div>
                     <label class="form-label" for="expense-amount">Kwota</label>
-                    <input id="expense-amount" class="form-control" type="number" step="0.01" @bind="amount" />
+                    <div class="input-group budget-currency-group amount-field-group">
+                        <input id="expense-amount"
+                               class="form-control text-end amount-number-input"
+                               type="number"
+                               min="0.01"
+                               max="999999999"
+                               step="0.01"
+                               @bind="amount" />
+                        <span class="input-group-text">PLN</span>
+                    </div>
                 </div>
 
                 <div>
                     <label class="form-label" for="expense-category">Kategoria</label>
-                    <select id="expense-category" class="form-control" @bind="category">
-                        @foreach (var expenseCategory in expenseCategories)
+                    <select id="expense-category" @bind="newExpenseCategoryId" class="form-control">
+                        @foreach (var cat in categories.Where(c => c.Id != 0))
                         {
-                            <option value="@expenseCategory">@expenseCategory</option>
+                            <option value="@cat.Id">@cat.Name</option>
                         }
                     </select>
                 </div>
@@ -259,12 +292,58 @@
                     {
                         @foreach (var expense in FilteredExpenses)
                         {
-                            <tr>
-                                <td>@expense.Name</td>
-                                <td>@expense.Category</td>
-                                <td>@FormatCurrency(expense.Amount)</td>
-                                <td>
-                                    <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usun</button>
+                            <tr class="budget-expense-row">
+                                @if (editingExpenseId == expense.Id)
+                                {
+                                    <td class="budget-expense-cell">
+                                        <input class="form-control form-control-sm expense-edit-control" type="text" @bind="editingName" />
+                                    </td>
+                                    <td class="budget-expense-cell">
+                                        <select @bind="editingCategoryId" class="form-control form-control-sm expense-edit-control">
+                                            @foreach (var cat in categories.Where(c => c.Id != 0))
+                                            {
+                                                <option value="@cat.Id">@cat.Name</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td class="budget-expense-cell">
+                                        <div class="input-group expense-edit-group">
+                                            <input class="form-control form-control-sm expense-edit-control text-end"
+                                                   type="number"
+                                                   min="0.01"
+                                                   max="999999999"
+                                                   step="0.01"
+                                                   @bind="editingAmount" />
+                                            <span class="input-group-text expense-edit-suffix">PLN</span>
+                                        </div>
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="budget-expense-cell">@expense.Name</td>
+                                    <td class="budget-expense-cell">
+                                        @if (expense.CategoryId == 0)
+                                        {
+                                            <span class="badge bg-secondary">Brak kategorii</span>
+                                        }
+                                        else
+                                        {
+                                            @expense.CategoryName
+                                        }
+                                    </td>
+                                    <td class="budget-expense-cell">@FormatCurrency(expense.Amount)</td>
+                                }
+                                <td class="budget-expense-cell">
+                                    @if (editingExpenseId == expense.Id)
+                                    {
+                                        <button class="btn btn-success btn-sm me-2" type="button" @onclick="() => SaveEdit(expense.Id)">✔ Zapisz</button>
+                                        <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">❌ Anuluj</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-primary btn-sm me-2" type="button" @onclick="() => StartEdit(expense)">✏️</button>
+                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usun</button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -277,6 +356,8 @@
 
 @code {
     private readonly List<int> availableYears = Enumerable.Range(DateTime.Now.Year - 4, 5).Reverse().ToList();
+    private const decimal MinExpenseAmount = 0.01m;
+    private const decimal MaxExpenseAmount = 999999999m;
     private readonly List<MonthOption> monthOptions =
     [
         new(1, "1"),
@@ -299,8 +380,7 @@
     private string newBudgetIncomeText = string.Empty;
     private string name = string.Empty;
     private decimal amount;
-    private readonly List<string> expenseCategories = ["Stałe", "Jedzenie", "Transport", "Rozrywka", "Inne"];
-    private string category = "Stałe";
+    private int newExpenseCategoryId;
     private string statusMessage = string.Empty;
     private bool isStatusError;
     private int statusMessageVersion;
@@ -309,14 +389,18 @@
     private bool isEditMode = false;
     private decimal originalIncome;
     private bool showSavePopup = false;
-    private string? selectedCategory;
+    private List<Category> categories = new();
+    private int? selectedCategoryId;
     private decimal? minAmount;
     private decimal? maxAmount;
+    private int? editingExpenseId = null;
+    private string editingName = "";
+    private decimal editingAmount = 0;
+    private int editingCategoryId;
     private BudgetDetailsResponse? currentBudget;
     private IEnumerable<ExpenseDto> FilteredExpenses =>
         currentBudget?.Expenses
             .Where(e =>
-                (string.IsNullOrEmpty(selectedCategory) || e.Category == selectedCategory) &&
                 (!minAmount.HasValue || e.Amount >= minAmount.Value) &&
                 (!maxAmount.HasValue || e.Amount <= maxAmount.Value)
             ) ?? Enumerable.Empty<ExpenseDto>();
@@ -327,7 +411,18 @@
         selectedYear = now.Year;
         selectedMonth = now.Month;
 
+        await LoadCategories();
         await ShowBudget();
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories") ?? new();
+
+        if (newExpenseCategoryId == 0)
+        {
+            newExpenseCategoryId = categories.FirstOrDefault()?.Id ?? 0;
+        }
     }
 
     private async Task CreateBudgetAsync()
@@ -383,10 +478,8 @@
                 return;
             }
 
-            if (amount <= 0)
+            if (!await ValidateExpenseAmount(amount))
             {
-                Console.WriteLine("Nieprawidlowa kwota");
-                await ShowStatusMessageAsync("Nieprawidlowa wartosc wydatku.", true);
                 return;
             }
 
@@ -394,7 +487,7 @@
             {
                 Name = name,
                 Amount = amount,
-                Category = category
+                CategoryId = newExpenseCategoryId == 0 ? 0 : newExpenseCategoryId
             };
 
             Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{budgetId}/expense");
@@ -409,7 +502,7 @@
 
             name = string.Empty;
             amount = 0;
-            category = expenseCategories[0];
+            newExpenseCategoryId = categories.FirstOrDefault()?.Id ?? 0;
 
             await ShowBudget();
             await ShowExpenseAddedMessageAsync();
@@ -462,30 +555,68 @@
         }
     }
 
+    void StartEdit(ExpenseDto expense)
+    {
+        editingExpenseId = expense.Id;
+        editingName = expense.Name;
+        editingAmount = expense.Amount;
+        editingCategoryId = expense.CategoryId;
+    }
+
+    void CancelEdit()
+    {
+        editingExpenseId = null;
+    }
+
+    private async Task SaveEdit(int expenseId)
+    {
+        Console.WriteLine("UPDATE EXPENSE CLICKED");
+
+        if (!await ValidateExpenseAmount(editingAmount))
+        {
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync(
+            $"http://localhost:5226/api/budget/{currentBudget.Id}/expense/{expenseId}",
+            new
+            {
+                name = editingName,
+                amount = editingAmount,
+                categoryId = editingCategoryId == 0 ? 0 : editingCategoryId
+            }
+        );
+
+        if (response.IsSuccessStatusCode)
+        {
+            editingExpenseId = null;
+            await ShowBudget();
+        }
+        else
+        {
+            statusMessage = "Błąd zapisu wydatku";
+        }
+    }
+
     private async Task ShowBudget()
     {
-        var month = $"{selectedYear}-{selectedMonth:D2}";
-        Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/by-month/{month}");
+        var url = $"http://localhost:5226/api/Budget/filter?year={selectedYear}&month={selectedMonth}";
+
+        if (selectedCategoryId.HasValue && selectedCategoryId.Value != 0)
+        {
+            url += $"&categoryId={selectedCategoryId.Value}";
+        }
+
+        Console.WriteLine($"FULL URL: {url}");
 
         try
         {
-            var response = await Http.GetAsync($"http://localhost:5226/api/budget/by-month/{month}");
-
-            Console.WriteLine($"STATUS: {response.StatusCode}");
-
-            if (!response.IsSuccessStatusCode)
-            {
-                currentBudget = null;
-                await ShowStatusMessageAsync("Nie znaleziono budzetu dla wybranego miesiaca.", true);
-                return;
-            }
-
-            var data = await response.Content.ReadFromJsonAsync<BudgetDetailsResponse>();
+            var data = await Http.GetFromJsonAsync<BudgetDetailsResponse>(url);
 
             if (data is null)
             {
                 currentBudget = null;
-                await ShowStatusMessageAsync("Brak danych.", true);
+                await ShowStatusMessageAsync("Nie znaleziono budzetu dla wybranego miesiaca.", true);
                 return;
             }
 
@@ -603,7 +734,32 @@
 
     private static string FormatCurrency(decimal value)
     {
-        return value.ToString("0.00", CultureInfo.InvariantCulture);
+        return value.ToString("C", new CultureInfo("pl-PL"));
+    }
+
+    private async Task<bool> ValidateExpenseAmount(decimal value)
+    {
+        if (value < MinExpenseAmount)
+        {
+            Console.WriteLine("Nieprawidlowa kwota");
+            await ShowStatusMessageAsync("Kwota musi byc wieksza lub rowna 0.01 PLN.", true);
+            return false;
+        }
+
+        if (value > MaxExpenseAmount)
+        {
+            Console.WriteLine("Kwota przekracza limit");
+            await ShowStatusMessageAsync("Kwota nie moze byc wieksza niz 999999999 PLN.", true);
+            return false;
+        }
+
+        return true;
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
 
     private sealed record MonthOption(int Value, string Label);
@@ -705,5 +861,111 @@
         background: #fef2f2;
         border: 1px solid #fecaca;
         color: #991b1b;
+    }
+
+    .budget-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .budget-table th:nth-child(1),
+    .budget-table td:nth-child(1) {
+        width: 35%;
+    }
+
+    .budget-table th:nth-child(2),
+    .budget-table td:nth-child(2) {
+        width: 25%;
+    }
+
+    .budget-table th:nth-child(3),
+    .budget-table td:nth-child(3) {
+        width: 15%;
+    }
+
+    .budget-table th:nth-child(4),
+    .budget-table td:nth-child(4) {
+        width: 25%;
+    }
+
+    .budget-table td {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .budget-table th:nth-child(3),
+    .budget-table td:nth-child(3) {
+        text-align: right;
+    }
+
+    .budget-table td:nth-child(4) {
+        overflow: visible;
+        white-space: nowrap;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .budget-table td:nth-child(4) .btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .budget-expense-row {
+        height: 48px;
+    }
+
+    .budget-expense-row > .budget-expense-cell {
+        height: 48px;
+        vertical-align: middle;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .expense-edit-control {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        height: 32px;
+        min-height: 32px;
+        margin: 0;
+        padding: 2px 8px;
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    .budget-table td:nth-child(3) .expense-edit-control,
+    .budget-table td:nth-child(3) input[type="number"] {
+        text-align: right;
+    }
+
+    .budget-currency-group .input-group-text {
+        font-size: 14px;
+    }
+
+    .amount-field-group {
+        width: min(100%, 170px);
+        max-width: 170px;
+    }
+
+    .amount-number-input {
+        text-align: right;
+    }
+
+    .expense-edit-group {
+        flex-wrap: nowrap;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .expense-edit-suffix {
+        height: 32px;
+        min-height: 32px;
+        margin: 0;
+        padding: 2px 8px;
+        font-size: 14px;
+        line-height: 1.2;
     }
 </style>

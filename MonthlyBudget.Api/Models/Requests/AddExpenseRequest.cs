@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MonthlyBudget.Api.Models.Requests;
+namespace MonthlyBudget.Api;
 
 public class AddExpenseRequest
 {
@@ -9,8 +9,5 @@ public class AddExpenseRequest
     public string Name { get; set; } = string.Empty;
 
     public decimal Amount { get; set; }
-
-    [Required]
-    [MaxLength(50)]
-    public string Category { get; set; } = string.Empty;
+    public int CategoryId { get; set; }
 }

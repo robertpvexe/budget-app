@@ -1,4 +1,4 @@
-/* _content/MonthlyBudget.Web/Components/Layout/MainLayout.razor.rz.scp.css */
+/* /Components/Layout/MainLayout.razor.rz.scp.css */
 .page[b-dq2xqsqze6] {
     position: relative;
     display: flex;
@@ -97,7 +97,7 @@ main[b-dq2xqsqze6] {
         right: 0.75rem;
         top: 0.5rem;
     }
-/* _content/MonthlyBudget.Web/Components/Layout/NavMenu.razor.rz.scp.css */
+/* /Components/Layout/NavMenu.razor.rz.scp.css */
 .navbar-toggler[b-vwm923d37c] {
     appearance: none;
     cursor: pointer;
@@ -203,7 +203,7 @@ main[b-dq2xqsqze6] {
         overflow-y: auto;
     }
 }
-/* _content/MonthlyBudget.Web/Components/Pages/Budget.razor.rz.scp.css */
+/* /Components/Pages/Budget.razor.rz.scp.css */
 .budget-page[b-rkkam10yuf] {
     display: grid;
     gap: 1.5rem;

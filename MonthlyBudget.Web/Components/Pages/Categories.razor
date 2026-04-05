@@ -1,0 +1,64 @@
+@page "/categories"
+@rendermode InteractiveServer
+@inject HttpClient Http
+
+<h3>Kategorie</h3>
+
+<div class="mb-3">
+    <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" />
+    <button class="btn btn-primary mt-2" @onclick="AddCategory">Dodaj</button>
+</div>
+
+@if (categories == null)
+{
+    <p>Ładowanie...</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var category in categories.Where(c => c.Id != 0))
+        {
+            <li class="list-group-item d-flex justify-content-between">
+                @category.Name
+                <button class="btn btn-danger btn-sm" @onclick="() => DeleteCategory(category.Id)">Usuń</button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Category>? categories;
+    private string newCategoryName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories");
+    }
+
+    private async Task AddCategory()
+    {
+        if (string.IsNullOrWhiteSpace(newCategoryName))
+            return;
+
+        await Http.PostAsJsonAsync("http://localhost:5226/api/Budget/categories", newCategoryName);
+        newCategoryName = "";
+        await LoadCategories();
+    }
+
+    private async Task DeleteCategory(int id)
+    {
+        await Http.DeleteAsync($"api/budget/categories/{id}");
+        await LoadCategories();
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}

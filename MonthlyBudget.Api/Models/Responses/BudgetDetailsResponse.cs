@@ -1,4 +1,4 @@
-namespace MonthlyBudget.Api.Models.Responses;
+namespace MonthlyBudget.Api;
 
 public class BudgetDetailsResponse
 {

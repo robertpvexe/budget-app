@@ -1,6 +1,6 @@
-namespace MonthlyBudget.Web.Models.Requests;
+namespace MonthlyBudget.Api;
 
-public class AddExpenseRequest
+public class UpdateExpenseRequest
 {
     public string Name { get; set; } = string.Empty;
     public decimal Amount { get; set; }

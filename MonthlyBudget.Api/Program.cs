@@ -1,12 +1,15 @@
-using MonthlyBudget.Api.Services;
+using Microsoft.EntityFrameworkCore;
+using MonthlyBudget.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<BudgetDbContext>(options =>
+    options.UseSqlite("Data Source=budget.db"));
 
-builder.Services.AddSingleton<IBudgetService, BudgetService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
 
 var app = builder.Build();
 

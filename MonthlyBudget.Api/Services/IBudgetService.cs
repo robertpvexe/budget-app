@@ -1,15 +1,19 @@
-using MonthlyBudget.Api.Models;
-using BudgetModel = MonthlyBudget.Api.Models.MonthlyBudget;
+using BudgetModel = MonthlyBudget.Api.MonthlyBudget;
 
-namespace MonthlyBudget.Api.Services;
+namespace MonthlyBudget.Api;
 
 public interface IBudgetService
 {
     BudgetModel CreateMonthlyBudget(BudgetModel monthlyBudget);
     Expense AddExpense(int monthlyBudgetId, Expense expense);
+    List<Category> GetCategories();
+    Category? AddCategory(string name);
+    bool DeleteCategory(int id);
+    bool UpdateExpense(int budgetId, int expenseId, UpdateExpenseRequest request);
     bool RemoveExpense(int monthlyBudgetId, int expenseId);
     bool UpdateIncome(int id, decimal income);
-    BudgetModel? GetMonthlyBudget(int id);
-    BudgetModel? GetMonthlyBudget(string month);
-    BudgetModel? GetByMonth(string yearMonth);
+    BudgetModel? FilterBudget(int year, int month, int? categoryId, DateTime? from, DateTime? to);
+    BudgetModel? GetMonthlyBudget(int id, int? categoryId = null);
+    BudgetModel? GetMonthlyBudget(string month, int? categoryId = null);
+    BudgetModel? GetByMonth(string yearMonth, int? categoryId = null);
 }

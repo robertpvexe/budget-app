@@ -1,12 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using MonthlyBudget.Api.Models;
-using MonthlyBudget.Api.Models.Requests;
-using MonthlyBudget.Api.Models.Responses;
-using MonthlyBudget.Api.Services;
 using System.Globalization;
-using BudgetModel = MonthlyBudget.Api.Models.MonthlyBudget;
+using BudgetModel = MonthlyBudget.Api.MonthlyBudget;
 
-namespace MonthlyBudget.Api.Controllers;
+namespace MonthlyBudget.Api;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -47,11 +43,16 @@ public class BudgetController : ControllerBase
     [HttpPost("{id:int}/expense")]
     public ActionResult<Expense> AddExpense(int id, AddExpenseRequest request)
     {
+        if (!Expense.IsAmountValid(request.Amount))
+        {
+            return BadRequest($"Amount must be between {Expense.MinAmount} and {Expense.MaxAmount}.");
+        }
+
         var expense = new Expense
         {
             Name = request.Name,
             Amount = request.Amount,
-            Category = request.Category
+            CategoryId = request.CategoryId
         };
 
         try
@@ -65,6 +66,31 @@ public class BudgetController : ControllerBase
         }
     }
 
+    [HttpGet("categories")]
+    public IActionResult GetCategories()
+    {
+        return Ok(_budgetService.GetCategories());
+    }
+
+    [HttpPost("categories")]
+    public IActionResult AddCategory([FromBody] string name)
+    {
+        var category = _budgetService.AddCategory(name);
+        if (category is null)
+            return BadRequest("Category already exists or name is invalid.");
+
+        return Ok(category);
+    }
+
+    [HttpDelete("categories/{id}")]
+    public IActionResult DeleteCategory(int id)
+    {
+        var result = _budgetService.DeleteCategory(id);
+        if (!result) return NotFound();
+
+        return Ok();
+    }
+
     [HttpDelete("{budgetId:int}/expense/{expenseId:int}")]
     public IActionResult DeleteExpense(int budgetId, int expenseId)
     {
@@ -72,6 +98,24 @@ public class BudgetController : ControllerBase
         Console.WriteLine($"budgetId: {budgetId}, expenseId: {expenseId}");
 
         var result = _budgetService.RemoveExpense(budgetId, expenseId);
+
+        if (!result)
+            return NotFound();
+
+        return Ok();
+    }
+
+    [HttpPut("{budgetId:int}/expense/{expenseId:int}")]
+    public IActionResult UpdateExpense(int budgetId, int expenseId, [FromBody] UpdateExpenseRequest request)
+    {
+        Console.WriteLine("=== UPDATE EXPENSE CONTROLLER HIT ===");
+
+        if (!Expense.IsAmountValid(request.Amount))
+        {
+            return BadRequest($"Amount must be between {Expense.MinAmount} and {Expense.MaxAmount}.");
+        }
+
+        var result = _budgetService.UpdateExpense(budgetId, expenseId, request);
 
         if (!result)
             return NotFound();
@@ -142,16 +186,28 @@ public class BudgetController : ControllerBase
     }
 
     [HttpGet("by-month/{yearMonth}")]
-    public IActionResult GetByMonth(string yearMonth)
+    public IActionResult GetByMonth(string yearMonth, [FromQuery] int? categoryId = null)
     {
         Console.WriteLine($"=== GET BY MONTH === {yearMonth}");
 
-        var budget = _budgetService.GetByMonth(yearMonth);
+        var budget = _budgetService.GetByMonth(yearMonth, categoryId);
 
         if (budget is null)
             return NotFound("Budget not found");
 
         return Ok(budget);
+    }
+
+    [HttpGet("filter")]
+    public IActionResult Filter(
+        int year,
+        int month,
+        int? categoryId,
+        DateTime? from,
+        DateTime? to)
+    {
+        var result = _budgetService.FilterBudget(year, month, categoryId, from, to);
+        return Ok(result);
     }
 
     private static bool IsValidMonth(string month) =>

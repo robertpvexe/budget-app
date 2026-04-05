@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MonthlyBudget.Api.Models.Requests;
+namespace MonthlyBudget.Api;
 
 public class SetBudgetIncomeRequest
 {

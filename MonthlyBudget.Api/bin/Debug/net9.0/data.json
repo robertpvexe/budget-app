@@ -8,21 +8,24 @@
         "Id": 6,
         "Name": "Kawa",
         "Amount": 50,
-        "Category": "Jedzenie",
+        "CategoryId": 0,
+        "CategoryName": "Brak kategorii",
         "MonthlyBudgetId": 1
       },
       {
         "Id": 8,
         "Name": "kwiaty",
         "Amount": 69,
-        "Category": "Rozrywka",
+        "CategoryId": 0,
+        "CategoryName": "Brak kategorii",
         "MonthlyBudgetId": 1
       },
       {
         "Id": 9,
         "Name": "Rurki z kremem",
         "Amount": 10,
-        "Category": "Transport",
+        "CategoryId": 0,
+        "CategoryName": "Brak kategorii",
         "MonthlyBudgetId": 1
       }
     ]
@@ -31,7 +34,48 @@
     "Id": 2,
     "Month": "2026-04",
     "Income": 6500,
-    "Expenses": []
+    "Expenses": [
+      {
+        "Id": 11,
+        "Name": "Wino",
+        "Amount": 80,
+        "CategoryId": 1,
+        "CategoryName": "Jedzenie",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 13,
+        "Name": "Woda",
+        "Amount": 60,
+        "CategoryId": 2,
+        "CategoryName": "Napoje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 14,
+        "Name": "Czynsz",
+        "Amount": 800,
+        "CategoryId": 3,
+        "CategoryName": "Rachunki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 15,
+        "Name": "Coca-Cola",
+        "Amount": 20,
+        "CategoryId": 2,
+        "CategoryName": "Napoje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 16,
+        "Name": "Pr\u0105d",
+        "Amount": 250,
+        "CategoryId": 6,
+        "CategoryName": "Inne",
+        "MonthlyBudgetId": 2
+      }
+    ]
   },
   {
     "Id": 3,
