@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 @using System.Globalization
 
-<PageTitle>Budzet</PageTitle>
+<PageTitle>Budżet</PageTitle>
 
 <div class="budget-page">
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -14,97 +14,6 @@
                 @statusMessage
             </div>
         </div>
-    }
-
-    @if (showSavePopup)
-    {
-        <div class="save-overlay">
-            <div class="save-modal">
-                <p>Czy zapisać zmiany?</p>
-
-                <div class="d-flex justify-content-end gap-2 mt-3">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelChanges">Nie</button>
-                    <button type="button" class="btn btn-primary" @onclick="async () => await ConfirmSave()">Tak</button>
-                </div>
-            </div>
-        </div>
-    }
-
-    @if (currentBudget is not null)
-    {
-        <section class="budget-card">
-            <div class="position-relative @(isEditMode ? "edit-mode-active" : "")">
-                <button type="button" class="btn @(isEditMode ? "btn-outline-warning" : "btn-outline-secondary") btn-sm position-absolute"
-                        style="top: 10px; right: 10px;"
-                        @onclick="ToggleEditMode">
-                    ⚙️
-                </button>
-
-                <h3 class="mt-4 mb-4 text-center text-uppercase fw-bold" style="letter-spacing:1px;">
-                    Podsumowanie miesiąca
-                </h3>
-
-                @if (isEditMode)
-                {
-                    <div class="edit-mode-overlay">
-                        <div class="edit-mode-banner d-flex align-items-center justify-content-between">
-                            <span>✏️ Tryb edycji włączony</span>
-                            <button type="button" class="btn-close ms-3" @onclick="ToggleEditMode"></button>
-                        </div>
-                    </div>
-                }
-
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="card p-3 text-center shadow-sm">
-                            <div class="text-muted">Przychód</div>
-                            @if (currentBudget != null)
-                            {
-                                if (isEditMode)
-                                {
-                                    <div class="input-group budget-currency-group amount-field-group mx-auto">
-                                        <input type="number"
-                                               class="form-control text-end fw-bold amount-number-input"
-                                               min="0.01"
-                                               max="999999999"
-                                               step="0.01"
-                                               @bind="currentBudget.Income" />
-                                        <span class="input-group-text">PLN</span>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="fs-4 fw-bold">
-                                        @FormatCurrency(currentBudget.Income)
-                                    </div>
-                                }
-                            }
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="card p-3 text-center shadow-sm">
-                            <div class="text-muted">Wydatki</div>
-                            <div class="fs-4 fw-bold">@FormatCurrency(currentBudget.TotalExpenses)</div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="card p-3 text-center shadow-sm">
-                            <div class="text-muted">Pozostało</div>
-                            <div class="fs-4 fw-bold">@FormatCurrency(currentBudget.Remaining)</div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="card p-3 text-center shadow-sm">
-                            <div class="text-muted">Procent</div>
-                            <div class="fs-4 fw-bold">@currentBudget.Percentage %</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
     }
 
     <section class="budget-card">
@@ -193,29 +102,6 @@
     </section>
 
     <section class="budget-card">
-        <h2>Dodaj budzet</h2>
-
-        <form @onsubmit="CreateBudgetAsync" @onsubmit:preventDefault>
-            <div class="budget-grid">
-                <div>
-                    <label class="form-label" for="month">Miesiac</label>
-                    <input id="month" class="form-control" placeholder="2026-03" @bind="newBudgetMonth" />
-                </div>
-
-                <div>
-                    <label class="form-label" for="income">Przychod</label>
-                    <div class="input-group budget-currency-group amount-field-group">
-                        <input id="income" class="form-control" placeholder="6500" @bind="newBudgetIncomeText" />
-                        <span class="input-group-text">PLN</span>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn btn-primary" type="submit">Dodaj budzet</button>
-        </form>
-    </section>
-
-    <section class="budget-card">
         <h2>Dodaj wydatek</h2>
 
         <form>
@@ -268,8 +154,8 @@
     {
         <section class="budget-card">
             <div class="table-header">
-                <h2>Lista wydatkow</h2>
-                <span>Budzet: @currentBudget.Month</span>
+                <h2>Lista wydatków</h2>
+                <span>Budżet: @currentBudget.Month</span>
             </div>
 
             <table class="table budget-table">
@@ -285,7 +171,7 @@
                     @if (!FilteredExpenses.Any())
                     {
                         <tr>
-                            <td colspan="4" class="empty-row">Brak wydatkow.</td>
+                            <td colspan="4" class="empty-row">Brak wydatków.</td>
                         </tr>
                     }
                     else
@@ -336,13 +222,13 @@
                                 <td class="budget-expense-cell">
                                     @if (editingExpenseId == expense.Id)
                                     {
-                                        <button class="btn btn-success btn-sm me-2" type="button" @onclick="() => SaveEdit(expense.Id)">✔ Zapisz</button>
+                                        <button class="btn btn-success btn-sm" type="button" @onclick="() => SaveEdit(expense.Id)">✔ Zapisz</button>
                                         <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">❌ Anuluj</button>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-outline-primary btn-sm me-2" type="button" @onclick="() => StartEdit(expense)">✏️</button>
-                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usun</button>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">✏️</button>
+                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usuń</button>
                                     }
                                 </td>
                             </tr>
@@ -355,29 +241,11 @@
 </div>
 
 @code {
-    private readonly List<int> availableYears = Enumerable.Range(DateTime.Now.Year - 4, 5).Reverse().ToList();
     private const decimal MinExpenseAmount = 0.01m;
     private const decimal MaxExpenseAmount = 999999999m;
-    private readonly List<MonthOption> monthOptions =
-    [
-        new(1, "1"),
-        new(2, "2"),
-        new(3, "3"),
-        new(4, "4"),
-        new(5, "5"),
-        new(6, "6"),
-        new(7, "7"),
-        new(8, "8"),
-        new(9, "9"),
-        new(10, "10"),
-        new(11, "11"),
-        new(12, "12")
-    ];
     private int currentBudgetId = 1;
     private int selectedYear = DateTime.Now.Year;
     private int selectedMonth = DateTime.Now.Month;
-    private string newBudgetMonth = DateTime.Today.ToString("yyyy-MM");
-    private string newBudgetIncomeText = string.Empty;
     private string name = string.Empty;
     private decimal amount;
     private int newExpenseCategoryId;
@@ -386,24 +254,22 @@
     private int statusMessageVersion;
     private string lastExpenseClickMessage = string.Empty;
     private string expenseAddedMessage = string.Empty;
-    private bool isEditMode = false;
-    private decimal originalIncome;
-    private bool showSavePopup = false;
     private List<Category> categories = new();
     private int? selectedCategoryId;
     private decimal? minAmount;
     private decimal? maxAmount;
-    private int? editingExpenseId = null;
-    private string editingName = "";
-    private decimal editingAmount = 0;
+    private int? editingExpenseId;
+    private string editingName = string.Empty;
+    private decimal editingAmount;
     private int editingCategoryId;
     private BudgetDetailsResponse? currentBudget;
+
     private IEnumerable<ExpenseDto> FilteredExpenses =>
         currentBudget?.Expenses
             .Where(e =>
                 (!minAmount.HasValue || e.Amount >= minAmount.Value) &&
-                (!maxAmount.HasValue || e.Amount <= maxAmount.Value)
-            ) ?? Enumerable.Empty<ExpenseDto>();
+                (!maxAmount.HasValue || e.Amount <= maxAmount.Value))
+            ?? Enumerable.Empty<ExpenseDto>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -425,47 +291,10 @@
         }
     }
 
-    private async Task CreateBudgetAsync()
-    {
-        ClearStatusMessage();
-
-        if (!TryParseDecimal(newBudgetIncomeText, out var income))
-        {
-            await ShowStatusMessageAsync("Nieprawidlowa wartosc przychodu.", true);
-            return;
-        }
-
-        Console.WriteLine("FULL URL: http://localhost:5226/api/budget");
-        var response = await Http.PostAsJsonAsync("http://localhost:5226/api/budget", new CreateMonthlyBudgetRequest
-        {
-            Month = newBudgetMonth,
-            Income = income
-        });
-
-        if (!response.IsSuccessStatusCode)
-        {
-            await ShowStatusMessageAsync("Nie udalo sie dodac budzetu.", true);
-            return;
-        }
-
-        var createdBudget = await response.Content.ReadFromJsonAsync<BudgetDto>();
-
-        if (createdBudget is null)
-        {
-            await ShowStatusMessageAsync("API zwrocilo pusty wynik.", true);
-            return;
-        }
-
-        currentBudgetId = createdBudget.Id;
-        await ShowBudget();
-        await ShowStatusMessageAsync("Budzet zostal dodany.", false);
-    }
-
     private async Task AddExpense()
     {
         ClearStatusMessage();
         lastExpenseClickMessage = $"Klik wykryty: {DateTime.Now:HH:mm:ss}";
-        Console.WriteLine("Klik dziala");
 
         try
         {
@@ -473,7 +302,6 @@
 
             if (budgetId == 0)
             {
-                Console.WriteLine("Brak budgetId");
                 await ShowStatusMessageAsync("Najpierw dodaj budzet.", true);
                 return;
             }
@@ -490,12 +318,10 @@
                 CategoryId = newExpenseCategoryId == 0 ? 0 : newExpenseCategoryId
             };
 
-            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{budgetId}/expense");
             var response = await Http.PostAsJsonAsync($"http://localhost:5226/api/budget/{budgetId}/expense", expense);
 
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine(response.StatusCode);
                 await ShowStatusMessageAsync("Nie udalo sie dodac wydatku.", true);
                 return;
             }
@@ -507,9 +333,8 @@
             await ShowBudget();
             await ShowExpenseAddedMessageAsync();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(ex.ToString());
             await ShowStatusMessageAsync("Wystapil blad podczas dodawania wydatku.", true);
         }
     }
@@ -519,16 +344,12 @@
         ClearStatusMessage();
 
         var budgetId = currentBudget?.Id ?? currentBudgetId;
-
         if (budgetId == 0)
         {
             return;
         }
 
-        Console.WriteLine($"Delete expenseId: {expenseId}");
-
         var confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunac?");
-
         if (!confirmed)
         {
             return;
@@ -536,26 +357,23 @@
 
         try
         {
-            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{budgetId}/expense/{expenseId}");
             var response = await Http.DeleteAsync($"http://localhost:5226/api/budget/{budgetId}/expense/{expenseId}");
 
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine(response.StatusCode);
                 await ShowStatusMessageAsync("Nie udalo sie usunac wydatku.", true);
                 return;
             }
 
             await ShowBudget();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(ex.ToString());
             await ShowStatusMessageAsync("Wystapil blad podczas usuwania wydatku.", true);
         }
     }
 
-    void StartEdit(ExpenseDto expense)
+    private void StartEdit(ExpenseDto expense)
     {
         editingExpenseId = expense.Id;
         editingName = expense.Name;
@@ -563,22 +381,20 @@
         editingCategoryId = expense.CategoryId;
     }
 
-    void CancelEdit()
+    private void CancelEdit()
     {
         editingExpenseId = null;
     }
 
     private async Task SaveEdit(int expenseId)
     {
-        Console.WriteLine("UPDATE EXPENSE CLICKED");
-
         if (!await ValidateExpenseAmount(editingAmount))
         {
             return;
         }
 
         var response = await Http.PutAsJsonAsync(
-            $"http://localhost:5226/api/budget/{currentBudget.Id}/expense/{expenseId}",
+            $"http://localhost:5226/api/budget/{currentBudget!.Id}/expense/{expenseId}",
             new
             {
                 name = editingName,
@@ -607,8 +423,6 @@
             url += $"&categoryId={selectedCategoryId.Value}";
         }
 
-        Console.WriteLine($"FULL URL: {url}");
-
         try
         {
             var data = await Http.GetFromJsonAsync<BudgetDetailsResponse>(url);
@@ -623,12 +437,9 @@
             currentBudget = data;
             currentBudgetId = data.Id;
             ClearStatusMessage();
-
-            Console.WriteLine($"LOADED BUDGET ID: {currentBudget.Id}");
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(ex.ToString());
             await ShowStatusMessageAsync("Blad podczas pobierania danych.", true);
         }
     }
@@ -640,66 +451,11 @@
 
     private async Task ShowExpenseAddedMessageAsync()
     {
-        expenseAddedMessage = "Wydano dodany";
+        expenseAddedMessage = "Wydatek został dodany";
         await InvokeAsync(StateHasChanged);
         await Task.Delay(2000);
         expenseAddedMessage = string.Empty;
         await InvokeAsync(StateHasChanged);
-    }
-
-    private void ToggleEditMode()
-    {
-        if (!isEditMode)
-        {
-            originalIncome = currentBudget?.Income ?? 0;
-            isEditMode = true;
-            return;
-        }
-
-        if (currentBudget != null && currentBudget.Income != originalIncome)
-        {
-            showSavePopup = true;
-            return;
-        }
-
-        isEditMode = false;
-    }
-
-    private async Task ConfirmSave()
-    {
-        Console.WriteLine("SAVE CLICKED");
-
-        if (currentBudget != null)
-        {
-            Console.WriteLine($"FULL URL: http://localhost:5226/api/budget/{currentBudget.Id}");
-            var response = await Http.PutAsJsonAsync(
-                $"http://localhost:5226/api/budget/{currentBudget.Id}",
-                new { income = currentBudget.Income }
-            );
-
-            if (!response.IsSuccessStatusCode)
-            {
-                statusMessage = "Błąd zapisu.";
-                await InvokeAsync(StateHasChanged);
-                return;
-            }
-        }
-
-        showSavePopup = false;
-        isEditMode = false;
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private void CancelChanges()
-    {
-        if (currentBudget != null)
-        {
-            currentBudget.Income = originalIncome;
-        }
-
-        showSavePopup = false;
-        isEditMode = false;
     }
 
     private async Task ShowStatusMessageAsync(string message, bool isError)
@@ -726,12 +482,6 @@
         isStatusError = false;
     }
 
-    private static bool TryParseDecimal(string input, out decimal value)
-    {
-        return decimal.TryParse(input, NumberStyles.Number, CultureInfo.CurrentCulture, out value)
-            || decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
-    }
-
     private static string FormatCurrency(decimal value)
     {
         return value.ToString("C", new CultureInfo("pl-PL"));
@@ -741,14 +491,12 @@
     {
         if (value < MinExpenseAmount)
         {
-            Console.WriteLine("Nieprawidlowa kwota");
             await ShowStatusMessageAsync("Kwota musi byc wieksza lub rowna 0.01 PLN.", true);
             return false;
         }
 
         if (value > MaxExpenseAmount)
         {
-            Console.WriteLine("Kwota przekracza limit");
             await ShowStatusMessageAsync("Kwota nie moze byc wieksza niz 999999999 PLN.", true);
             return false;
         }
@@ -761,75 +509,9 @@
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
     }
-
-    private sealed record MonthOption(int Value, string Label);
 }
 
 <style>
-    .edit-mode-active {
-        outline: 2px dashed #f59e0b;
-        outline-offset: 4px;
-        border-radius: 10px;
-    }
-
-    .edit-mode-overlay {
-        position: fixed;
-        top: 100px;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        z-index: 9999;
-        pointer-events: none;
-    }
-
-    .edit-mode-banner {
-        background-color: #fff3cd;
-        border: 1px solid #ffe69c;
-        border-radius: 10px;
-        padding: 14px 20px;
-        min-width: 320px;
-        max-width: 550px;
-        width: fit-content;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        animation: fadeSlide 0.3s ease;
-        pointer-events: auto;
-    }
-
-    @@keyframes fadeSlide {
-        from {
-            opacity: 0;
-            transform: translateY(-15px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .save-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.3);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-    }
-
-    .save-modal {
-        background: white;
-        padding: 20px 25px;
-        border-radius: 10px;
-        min-width: 280px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        text-align: center;
-    }
-
     .status-overlay {
         position: fixed;
         top: 24px;
@@ -863,6 +545,18 @@
         color: #991b1b;
     }
 
+    @@keyframes fadeSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .budget-table {
         table-layout: fixed;
         width: 100%;
@@ -881,6 +575,7 @@
     .budget-table th:nth-child(3),
     .budget-table td:nth-child(3) {
         width: 15%;
+        text-align: right;
     }
 
     .budget-table th:nth-child(4),
@@ -892,11 +587,6 @@
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-    }
-
-    .budget-table th:nth-child(3),
-    .budget-table td:nth-child(3) {
-        text-align: right;
     }
 
     .budget-table td:nth-child(4) {

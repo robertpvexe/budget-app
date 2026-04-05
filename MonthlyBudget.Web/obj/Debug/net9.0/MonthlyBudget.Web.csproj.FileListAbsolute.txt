@@ -155,8 +155,6 @@ C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\bndef1fd
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\93yg8hsi1z-{0}-h1s4sie4z3-h1s4sie4z3.gz
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\xalrt7knvc-{0}-4d85u1mtcx-4d85u1mtcx.gz
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\j6wt37tr2d-{0}-0j3bgjxly4-0j3bgjxly4.gz
-C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\epeoks840a-{0}-rw0j62ckb3-rw0j62ckb3.gz
-C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\2ky3jum1yn-{0}-rw0j62ckb3-rw0j62ckb3.gz
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\staticwebassets.build.json
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\staticwebassets.build.json.cache
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\staticwebassets.development.json
@@ -167,3 +165,6 @@ C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\refint\MonthlyBudge
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\MonthlyBudget.Web.pdb
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\MonthlyBudget.Web.genruntimeconfig.cache
 C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\ref\MonthlyBudget.Web.dll
+C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\scopedcss\Components\Pages\Home.razor.rz.scp.css
+C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\epeoks840a-{0}-g97m5l8883-g97m5l8883.gz
+C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\2ky3jum1yn-{0}-g97m5l8883-g97m5l8883.gz
