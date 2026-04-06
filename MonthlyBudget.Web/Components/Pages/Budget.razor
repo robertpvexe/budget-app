@@ -78,37 +78,17 @@
                                @bind="searchTerm" />
                     </div>
 
-                    <div class="d-flex align-items-center gap-1 budget-filter-group budget-filter-date-group">
-                        <input type="date"
-                               class="form-control form-control-sm budget-filter-date"
-                               placeholder="Od"
-                               @bind="fromDateFilter"
-                               @bind:format="yyyy-MM-dd" />
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm budget-filter-toggle"
+                            @onclick="ToggleDateFilter">
+                        @DateFilterLabel
+                    </button>
 
-                        <input type="date"
-                               class="form-control form-control-sm budget-filter-date"
-                               placeholder="Do"
-                               @bind="toDateFilter"
-                               @bind:format="yyyy-MM-dd" />
-                    </div>
-
-                    <div class="d-flex align-items-center gap-1 budget-filter-group budget-filter-amount-group">
-                        <input type="number"
-                               class="form-control form-control-sm budget-filter-amount"
-                               placeholder="Od"
-                               min="0.01"
-                               max="999999999"
-                               step="0.01"
-                               @bind="minAmountFilter" />
-
-                        <input type="number"
-                               class="form-control form-control-sm budget-filter-amount"
-                               placeholder="Do"
-                               min="0.01"
-                               max="999999999"
-                               step="0.01"
-                               @bind="maxAmountFilter" />
-                    </div>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm budget-filter-toggle"
+                            @onclick="ToggleAmountFilter">
+                        @AmountFilterLabel
+                    </button>
 
                     <select class="@CategoryFilterSelectClass" @bind="selectedCategoryId">
                         <option value="">Wszystkie</option>
@@ -124,6 +104,46 @@
                         </button>
                     </div>
                 </div>
+
+                @if (showDateFilter)
+                {
+                    <div class="card budget-filter-panel mt-2">
+                        <div class="card-body d-flex align-items-center gap-2 flex-wrap p-2">
+                            <input type="date"
+                                   class="form-control form-control-sm budget-filter-date"
+                                   @bind="fromDateFilter"
+                                   @bind:format="yyyy-MM-dd" />
+
+                            <input type="date"
+                                   class="form-control form-control-sm budget-filter-date"
+                                   @bind="toDateFilter"
+                                   @bind:format="yyyy-MM-dd" />
+                        </div>
+                    </div>
+                }
+
+                @if (showAmountFilter)
+                {
+                    <div class="card budget-filter-panel mt-2">
+                        <div class="card-body d-flex align-items-center gap-2 flex-wrap p-2">
+                            <input type="number"
+                                   class="form-control form-control-sm budget-filter-amount"
+                                   placeholder="Od"
+                                   min="0.01"
+                                   max="999999999"
+                                   step="0.01"
+                                   @bind="minAmountFilter" />
+
+                            <input type="number"
+                                   class="form-control form-control-sm budget-filter-amount"
+                                   placeholder="Do"
+                                   min="0.01"
+                                   max="999999999"
+                                   step="0.01"
+                                   @bind="maxAmountFilter" />
+                        </div>
+                    </div>
+                }
             </form>
 
             <div class="table-header">
@@ -240,6 +260,8 @@
     private DateTime? toDateFilter;
     private decimal? minAmountFilter;
     private decimal? maxAmountFilter;
+    private bool showDateFilter;
+    private bool showAmountFilter;
     private List<Category> categories = new();
     private int? selectedCategoryId;
     private int? editingExpenseId;
@@ -256,6 +278,16 @@
         selectedCategoryId.HasValue
             ? "form-select form-select-sm budget-filter-category"
             : "form-select form-select-sm budget-filter-category text-muted";
+
+    private string DateFilterLabel =>
+        fromDateFilter.HasValue || toDateFilter.HasValue
+            ? $"Okres: {FormatDateFilterValue(fromDateFilter)} - {FormatDateFilterValue(toDateFilter)}"
+            : "Okres";
+
+    private string AmountFilterLabel =>
+        minAmountFilter.HasValue || maxAmountFilter.HasValue
+            ? $"Kwota: {FormatAmountFilterValue(minAmountFilter)} - {FormatAmountFilterValue(maxAmountFilter)}"
+            : "Kwota";
 
     protected override async Task OnInitializedAsync()
     {
@@ -483,6 +515,26 @@
         await ShowBudget();
     }
 
+    private void ToggleDateFilter()
+    {
+        showDateFilter = !showDateFilter;
+
+        if (showDateFilter)
+        {
+            showAmountFilter = false;
+        }
+    }
+
+    private void ToggleAmountFilter()
+    {
+        showAmountFilter = !showAmountFilter;
+
+        if (showAmountFilter)
+        {
+            showDateFilter = false;
+        }
+    }
+
     private async Task ShowExpenseAddedMessageAsync()
     {
         expenseAddedMessage = "Wydatek został dodany";
@@ -519,6 +571,16 @@
     private static string FormatCurrency(decimal value)
     {
         return value.ToString("C", new CultureInfo("pl-PL"));
+    }
+
+    private static string FormatDateFilterValue(DateTime? value)
+    {
+        return value?.ToString("dd.MM.yyyy") ?? "Od/Do";
+    }
+
+    private static string FormatAmountFilterValue(decimal? value)
+    {
+        return value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Od/Do";
     }
 
     private async Task<bool> ValidateExpenseAmount(decimal value)
@@ -700,6 +762,15 @@
     .budget-filter-category {
         width: 140px;
         min-width: 140px;
+    }
+
+    .budget-filter-toggle {
+        min-width: 140px;
+        white-space: nowrap;
+    }
+
+    .budget-filter-panel {
+        border-color: var(--bs-border-color);
     }
 
     .budget-filter-category.text-muted {
