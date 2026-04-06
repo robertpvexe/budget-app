@@ -1,10 +1,14 @@
-@page "/budget"
+﻿@page "/budget"
 @rendermode InteractiveServer
+@implements IDisposable
 @inject HttpClient Http
 @inject IJSRuntime JS
 @using System.Globalization
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Threading
 
-<PageTitle>Budżet</PageTitle>
+<PageTitle>Bud&#380;et</PageTitle>
 
 <div class="budget-page">
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -16,66 +20,34 @@
         </div>
     }
 
-    <section class="budget-card">
-        <h2>Dodaj wydatek</h2>
-
-        <form>
-            <div class="budget-grid">
-                <div>
-                    <label class="form-label" for="expense-name">Nazwa</label>
-                    <input id="expense-name" class="form-control" @bind="name" />
-                </div>
-
-                <div>
-                    <label class="form-label" for="expense-amount">Kwota</label>
-                    <div class="input-group budget-currency-group amount-field-group">
-                        <input id="expense-amount"
-                               class="form-control text-end amount-number-input"
-                               type="number"
-                               min="0.01"
-                               max="999999999"
-                               step="0.01"
-                               @bind="amount" />
-                        <span class="input-group-text">PLN</span>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="form-label" for="expense-category">Kategoria</label>
-                    <select id="expense-category" @bind="newExpenseCategoryId" class="form-control">
-                        @foreach (var cat in categories.Where(c => c.Id != 0))
-                        {
-                            <option value="@cat.Id">@cat.Name</option>
-                        }
-                    </select>
-                </div>
-            </div>
-
-            <button class="btn btn-success" type="button" @onclick="AddExpense" disabled="@(currentBudget is null)">Dodaj wydatek</button>
-        </form>
-    </section>
-
-    @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage))
+    @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage) || !string.IsNullOrWhiteSpace(expenseAddedMessage))
     {
-        <div class="budget-status">@lastExpenseClickMessage</div>
-    }
+        <div class="budget-toast-stack" aria-live="polite" aria-atomic="true">
+            @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage))
+            {
+                <div class="budget-status budget-status-toast">@lastExpenseClickMessage</div>
+            }
 
-    @if (!string.IsNullOrWhiteSpace(expenseAddedMessage))
-    {
-        <div class="budget-status">@expenseAddedMessage</div>
+            @if (!string.IsNullOrWhiteSpace(expenseAddedMessage))
+            {
+                <div class="budget-status budget-status-toast">@expenseAddedMessage</div>
+            }
+        </div>
     }
 
     @if (currentBudget is not null)
     {
-        <section class="budget-card">
+        <section class="budget-card budget-card-main">
             <form class="mb-3">
                 <div class="d-flex align-items-center gap-2 flex-nowrap budget-filters-row">
                     <div class="position-relative budget-filter-search">
-                        <span class="search-icon" aria-hidden="true">🔍</span>
+                        <span class="search-icon" aria-hidden="true">&#128269;</span>
                         <input type="text"
                                class="form-control border border-secondary rounded search-input"
                                placeholder="Szukaj..."
-                               @bind="searchTerm" />
+                               @bind="searchTerm"
+                               @bind:event="oninput"
+                               @bind:after="ScheduleFiltersAsync" />
                     </div>
 
                     <div class="position-relative d-inline-flex align-items-center justify-content-center">
@@ -93,13 +65,17 @@
                                            class="form-control form-control-sm budget-filter-date"
                                            onclick="this.showPicker ? this.showPicker() : this.focus()"
                                            @bind="fromDateFilter"
-                                           @bind:format="yyyy-MM-dd" />
+                                           @bind:event="onchange"
+                                           @bind:format="yyyy-MM-dd"
+                                           @bind:after="ScheduleFiltersAsync" />
 
                                     <input type="date"
                                            class="form-control form-control-sm budget-filter-date"
                                            onclick="this.showPicker ? this.showPicker() : this.focus()"
                                            @bind="toDateFilter"
-                                           @bind:format="yyyy-MM-dd" />
+                                           @bind:event="onchange"
+                                           @bind:format="yyyy-MM-dd"
+                                           @bind:after="ScheduleFiltersAsync" />
                                 </div>
                             </div>
                         }
@@ -123,7 +99,9 @@
                                            min="0.01"
                                            max="999999999"
                                            step="0.01"
-                                           @bind="minAmountFilter" />
+                                           @bind="minAmountFilter"
+                                           @bind:event="oninput"
+                                           @bind:after="ScheduleFiltersAsync" />
 
                                     <input type="number"
                                            class="form-control border border-secondary rounded budget-filter-amount"
@@ -132,41 +110,31 @@
                                            min="0.01"
                                            max="999999999"
                                            step="0.01"
-                                           @bind="maxAmountFilter" />
+                                           @bind="maxAmountFilter"
+                                           @bind:event="oninput"
+                                           @bind:after="ScheduleFiltersAsync" />
                                 </div>
                             </div>
                         }
                     </div>
 
-                    <div id="categoryDropdown" class="dropdown position-relative budget-filter-category-picker">
+                    <div class="position-relative d-inline-flex align-items-center justify-content-center budget-filter-category-picker" @key="CategoryFilterRenderKey">
                         <button type="button"
-                                class="btn btn-outline-secondary btn-sm dropdown-toggle budget-filter-toggle @(isDropdownOpen ? "no-hover" : "")"
+                                class="@CategoryFilterButtonClass"
                                 style="width: 260px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; justify-content: space-between;"
+                                aria-expanded="@isDropdownOpen"
                                 @onclick="ToggleDropdown">
                             <div class="position-relative w-100">
-                                <span class="text-truncate flex-grow-1 pe-4">
-                                    @if (!selectedCategories.Any())
-                                    {
-                                        <span>Wszystkie</span>
-                                    }
-                                    else if (selectedCategories.Count == 1)
-                                    {
-                                        <span>@selectedCategories.First()</span>
-                                    }
-                                    else
-                                    {
-                                        <span>@($"{selectedCategories.Count} wybrane")</span>
-                                    }
-                                </span>
+                                <span class="text-truncate flex-grow-1 pe-4">@CategoryDropdownText</span>
 
-                                @if (selectedCategories.Any())
+                                @if (selectedCategoryIds.Any())
                                 {
                                     <button type="button"
                                             class="btn budget-filter-clear-button position-absolute top-50 end-0 translate-middle-y me-2"
                                             style="width: 26px; height: 26px; padding: 0; font-size: 1.2rem; font-weight: bold; line-height: 1; border-radius: 50%;"
                                             @onclick="ClearCategories"
                                             @onclick:stopPropagation="true">
-                                        ×
+                                        &times;
                                     </button>
                                 }
                             </div>
@@ -174,79 +142,92 @@
 
                         @if (isDropdownOpen)
                         {
-                            <ul class="dropdown-menu p-2 show budget-filter-category-menu">
-                                @foreach (var category in categories.Where(cat => cat.Id != 0).Select(cat => cat.Name))
-                                {
-                                    <li class="d-flex justify-content-between align-items-center px-2 py-1 budget-filter-category-item @(selectedCategories.Contains(category) ? "text-muted selected-category" : "")"
-                                        style="@(selectedCategories.Contains(category) ? "font-weight: 500;" : null)">
-                                        <span class="category-name text-truncate" title="@category">@category</span>
-
-                                        @if (selectedCategories.Contains(category))
-                                        {
-                                            <button class="btn btn-sm btn-outline-danger budget-filter-category-action"
-                                                    type="button"
-                                                    @onclick="() => RemoveCategory(category)"
-                                                    @onclick:stopPropagation="true">
-                                                -
+                            <div class="budget-filter-panel budget-filter-panel-visible filter-panel budget-filter-category-panel">
+                                <ul class="budget-filter-category-menu">
+                                    @foreach (var category in categories.Where(cat => cat.Id != 0))
+                                    {
+                                        <li>
+                                            <button type="button"
+                                                    class="@GetCategoryOptionClass(category.Id)"
+                                                    title="@category.Name"
+                                                    @onclick="() => ToggleCategoryAsync(category.Id)">
+                                                <span class="category-name text-truncate">@category.Name</span>
+                                                <span class="budget-filter-category-indicator" aria-hidden="true">
+                                                    @(selectedCategoryIds.Contains(category.Id) ? "\u2713" : "+")
+                                                </span>
                                             </button>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-sm btn-outline-success budget-filter-category-action"
-                                                    type="button"
-                                                    @onclick="() => AddCategory(category)"
-                                                    @onclick:stopPropagation="true">
-                                                +
-                                            </button>
-                                        }
-                                    </li>
-                                }
-                            </ul>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
                         }
                     </div>
 
-                    <div class="ms-auto">
-                        <button type="button" class="btn btn-primary btn-sm budget-filter-button" @onclick="LoadSelectedBudget">
-                            Pokaż
-                        </button>
-                    </div>
+                    @if (IsAnyFilterActive())
+                    {
+                        <div class="ms-auto">
+                            <button type="button" class="btn btn-outline-secondary btn-sm budget-filter-button" @onclick="ResetFilters">
+                                Resetuj
+                            </button>
+                        </div>
+                    }
                 </div>
 
-                @if (showDateFilter || showAmountFilter)
+                @if (showDateFilter || showAmountFilter || isDropdownOpen)
                 {
                     <div
                             class="budget-filter-overlay"
                             @onclick="CloseFilterPanels"
-                            aria-label="Zamknij panel filtrów"></div>
+                            aria-label="Zamknij panel filtr&#243;w"></div>
                 }
 
             </form>
 
             <div class="table-header">
-                <h2>Lista wydatków</h2>
-                <span>Budżet: @currentBudget.Month</span>
+                <h2>Lista wydatk&#243;w</h2>
+                <span>Bud&#380;et: @currentBudget.Month</span>
             </div>
 
             <table class="table budget-table">
                 <thead>
                     <tr>
-                        <th>Nazwa</th>
-                        <th>Data</th>
-                        <th>Kategoria</th>
-                        <th>Kwota</th>
+                        <th>
+                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Name)" @onclick="() => SetSortAsync(BudgetSortColumn.Name)">
+                                <span>Nazwa</span>
+                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Name)</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Date)" @onclick="() => SetSortAsync(BudgetSortColumn.Date)">
+                                <span>Data</span>
+                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Date)</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Category)" @onclick="() => SetSortAsync(BudgetSortColumn.Category)">
+                                <span>Kategoria</span>
+                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Category)</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Amount)" @onclick="() => SetSortAsync(BudgetSortColumn.Amount)">
+                                <span>Kwota</span>
+                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Amount)</span>
+                            </button>
+                        </th>
                         <th>Akcje</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!FilteredExpenses.Any())
+                    @if (!SortedFilteredExpenses.Any())
                     {
                         <tr>
-                            <td colspan="5" class="empty-row">Brak wydatków.</td>
+                            <td colspan="5" class="empty-row">Brak wydatk&#243;w.</td>
                         </tr>
                     }
                     else
                     {
-                        @foreach (var expense in FilteredExpenses)
+                        @foreach (var expense in PagedExpenses)
                         {
                             <tr class="budget-expense-row">
                                 @if (editingExpenseId == expense.Id)
@@ -307,7 +288,7 @@
                                     else
                                     {
                                         <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">Edytuj</button>
-                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usuń</button>
+                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usu&#324;</button>
                                     }
                                 </td>
                             </tr>
@@ -315,13 +296,94 @@
                     }
                 </tbody>
             </table>
+
+            @if (ShouldShowPagination)
+            {
+                <div class="budget-pagination">
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm budget-pagination-nav"
+                            @onclick="GoToPreviousPage"
+                            disabled="@(CurrentPage == 1)">
+                        Poprzednia
+                    </button>
+
+                    <div class="budget-pagination-pages">
+                        @foreach (var pageNumber in PageNumbers)
+                        {
+                            <button type="button"
+                                    class="@GetPageButtonClass(pageNumber)"
+                                    @onclick="() => GoToPage(pageNumber)">
+                                @pageNumber
+                            </button>
+                        }
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm budget-pagination-nav"
+                            @onclick="GoToNextPage"
+                            disabled="@(CurrentPage == TotalPages)">
+                        Następna
+                    </button>
+                </div>
+            }
+
         </section>
     }
+
+    <section class="budget-card budget-card-form">
+        <div class="budget-section-heading">
+            <h2>Dodaj wydatek</h2>
+            <p class="budget-section-subtitle">Nowy wpis pojawi si&#281; na li&#347;cie powy&#380;ej z zachowaniem aktywnych filtr&oacute;w.</p>
+        </div>
+
+        <form>
+            <div class="budget-grid">
+                <div>
+                    <label class="form-label" for="expense-name">Nazwa</label>
+                    <input id="expense-name" class="form-control" @bind="name" />
+                </div>
+
+                <div>
+                    <label class="form-label" for="expense-amount">Kwota</label>
+                    <div class="input-group budget-currency-group amount-field-group">
+                        <input id="expense-amount"
+                               class="form-control text-end amount-number-input"
+                               type="number"
+                               min="0.01"
+                               max="999999999"
+                               step="0.01"
+                               @bind="amount" />
+                        <span class="input-group-text">PLN</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label" for="expense-category">Kategoria</label>
+                    <select id="expense-category" @bind="newExpenseCategoryId" class="form-control">
+                        @foreach (var cat in categories.Where(c => c.Id != 0))
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-success" type="button" @onclick="AddExpense" disabled="@(currentBudget is null)">Dodaj wydatek</button>
+        </form>
+    </section>
 </div>
 
 @code {
     private const decimal MinExpenseAmount = 0.01m;
     private const decimal MaxExpenseAmount = 999999999m;
+    private const int FilterDebounceDelayMs = 300;
+    private const int PageSize = 10;
+    private const string BudgetViewStateStorageKey = "monthly-budget.budget-view-state";
+    private static readonly JsonSerializerOptions BudgetViewStateJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
     private int currentBudgetId = 1;
     private int selectedYear = DateTime.Now.Year;
     private int selectedMonth = DateTime.Now.Month;
@@ -341,9 +403,22 @@
     private bool showDateFilter;
     private bool showAmountFilter;
     private bool isDropdownOpen;
-    private DotNetObjectReference<Budget>? dropdownDotNetRef;
-    private bool clickOutsideRegistered;
-    private List<string> selectedCategories = new();
+    private CancellationTokenSource? filterDebounceCts;
+    private CancellationTokenSource? filterRequestCts;
+    private bool isDisposed;
+    private bool viewStateInitialized;
+    private bool hasCompletedInitialRestore;
+    private bool isRestoringViewState;
+    private bool pendingViewStatePersistence;
+    private bool shouldPersistRestoredViewState;
+    private int filterRequestVersion;
+    private int categoryFilterRenderVersion;
+    private string lastAppliedFilterState = string.Empty;
+    private string lastScheduledFilterState = string.Empty;
+    private BudgetSortColumn currentSortColumn = BudgetSortColumn.Date;
+    private SortDirection currentSortDirection = SortDirection.Descending;
+    private int currentPage = 1;
+    private List<int> selectedCategoryIds = new();
     private List<Category> categories = new();
     private int? editingExpenseId;
     private string editingName = string.Empty;
@@ -352,10 +427,53 @@
     private int editingCategoryId;
     private BudgetDetailsResponse? currentBudget;
 
-    private IEnumerable<ExpenseDto> FilteredExpenses =>
-        currentBudget?.Expenses
-            .Where(expense => selectedCategories.Count == 0 || selectedCategories.Contains(expense.CategoryName))
-            ?? Enumerable.Empty<ExpenseDto>();
+    private IEnumerable<ExpenseDto> SortedFilteredExpenses =>
+        ApplySorting(
+            currentBudget?.Expenses
+                .Where(expense => selectedCategoryIds.Count == 0 || selectedCategoryIds.Contains(expense.CategoryId))
+                ?? Enumerable.Empty<ExpenseDto>());
+
+    private IEnumerable<ExpenseDto> PagedExpenses =>
+        SortedFilteredExpenses
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize);
+
+    private int TotalPages =>
+        Math.Max(1, (int)Math.Ceiling(SortedFilteredExpenses.Count() / (double)PageSize));
+
+    private int CurrentPage => Math.Clamp(currentPage, 1, TotalPages);
+
+    private bool ShouldShowPagination => SortedFilteredExpenses.Count() > PageSize;
+
+    private IEnumerable<int> PageNumbers => Enumerable.Range(1, TotalPages);
+
+    private bool HasDefaultSort =>
+        currentSortColumn == BudgetSortColumn.Date && currentSortDirection == SortDirection.Descending;
+
+    private string CategoryDropdownText
+    {
+        get
+        {
+            if (selectedCategoryIds.Count == 0)
+            {
+                return "Wszystkie";
+            }
+
+            if (selectedCategoryIds.Count == 1)
+            {
+                var selectedCategoryId = selectedCategoryIds[0];
+                var categoryName = categories
+                    .FirstOrDefault(category => category.Id == selectedCategoryId)
+                    ?.Name;
+
+                return string.IsNullOrWhiteSpace(categoryName)
+                    ? "1 wybrana"
+                    : categoryName;
+            }
+
+            return $"{selectedCategoryIds.Count} wybrane";
+        }
+    }
 
     private string DateFilterLabel =>
         fromDateFilter.HasValue || toDateFilter.HasValue
@@ -377,9 +495,137 @@
             ? "btn btn-outline-primary btn-sm budget-filter-toggle budget-filter-toggle-active"
             : "btn btn-outline-secondary btn-sm budget-filter-toggle";
 
+    private string CategoryFilterButtonClass =>
+        isDropdownOpen
+            ? "btn btn-outline-primary btn-sm budget-filter-toggle budget-filter-toggle-active no-hover"
+            : "btn btn-outline-secondary btn-sm budget-filter-toggle";
+
+    private string CategoryFilterRenderKey =>
+        $"{categoryFilterRenderVersion}:{string.Join(",", selectedCategoryIds.OrderBy(categoryId => categoryId))}:{isDropdownOpen}";
+
+    private string GetCategoryOptionClass(int categoryId)
+    {
+        return selectedCategoryIds.Contains(categoryId)
+            ? "budget-filter-category-option budget-filter-category-option-selected"
+            : "budget-filter-category-option";
+    }
+
+    private async Task SetSortAsync(BudgetSortColumn column)
+    {
+        if (currentSortColumn == column)
+        {
+            currentSortDirection = currentSortDirection == SortDirection.Ascending
+                ? SortDirection.Descending
+                : SortDirection.Ascending;
+            currentPage = 1;
+        }
+        else
+        {
+            currentSortColumn = column;
+            currentSortDirection = GetDefaultSortDirection(column);
+            currentPage = 1;
+        }
+
+        await PersistViewStateAsync();
+    }
+
+    private IEnumerable<ExpenseDto> ApplySorting(IEnumerable<ExpenseDto> expenses)
+    {
+        var orderedExpenses = currentSortColumn switch
+        {
+            BudgetSortColumn.Name => currentSortDirection == SortDirection.Ascending
+                ? expenses.OrderBy(expense => expense.Name, StringComparer.CurrentCultureIgnoreCase)
+                : expenses.OrderByDescending(expense => expense.Name, StringComparer.CurrentCultureIgnoreCase),
+            BudgetSortColumn.Category => currentSortDirection == SortDirection.Ascending
+                ? expenses.OrderBy(expense => expense.CategoryName, StringComparer.CurrentCultureIgnoreCase)
+                : expenses.OrderByDescending(expense => expense.CategoryName, StringComparer.CurrentCultureIgnoreCase),
+            BudgetSortColumn.Amount => currentSortDirection == SortDirection.Ascending
+                ? expenses.OrderBy(expense => expense.Amount)
+                : expenses.OrderByDescending(expense => expense.Amount),
+            _ => currentSortDirection == SortDirection.Ascending
+                ? expenses.OrderBy(expense => expense.CreatedAt)
+                : expenses.OrderByDescending(expense => expense.CreatedAt)
+        };
+
+        return orderedExpenses.ThenByDescending(expense => expense.Id);
+    }
+
+    private string GetSortButtonClass(BudgetSortColumn column)
+    {
+        return currentSortColumn == column
+            ? "budget-sort-button budget-sort-button-active"
+            : "budget-sort-button";
+    }
+
+    private string GetSortIndicator(BudgetSortColumn column)
+    {
+        if (currentSortColumn != column)
+        {
+            return string.Empty;
+        }
+
+        return currentSortDirection == SortDirection.Ascending ? "\u2191" : "\u2193";
+    }
+
+    private static SortDirection GetDefaultSortDirection(BudgetSortColumn column)
+    {
+        return column is BudgetSortColumn.Date or BudgetSortColumn.Amount
+            ? SortDirection.Descending
+            : SortDirection.Ascending;
+    }
+
+    private void GoToPreviousPage()
+    {
+        if (CurrentPage > 1)
+        {
+            currentPage = CurrentPage - 1;
+        }
+    }
+
+    private void GoToNextPage()
+    {
+        if (CurrentPage < TotalPages)
+        {
+            currentPage = CurrentPage + 1;
+        }
+    }
+
+    private void GoToPage(int pageNumber)
+    {
+        currentPage = Math.Clamp(pageNumber, 1, TotalPages);
+    }
+
+    private string GetPageButtonClass(int pageNumber)
+    {
+        return pageNumber == CurrentPage
+            ? "budget-page-button budget-page-button-active"
+            : "budget-page-button";
+    }
+
+    private void ResetToFirstPage()
+    {
+        currentPage = 1;
+    }
+
+    private void EnsureCurrentPageInRange()
+    {
+        currentPage = Math.Clamp(currentPage, 1, TotalPages);
+    }
+
     private async Task PositionPanel(string buttonId, string panelId)
     {
-        await JS.InvokeVoidAsync("positionFilterPanel", buttonId, panelId);
+        if (isDisposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("positionFilterPanel", buttonId, panelId);
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -389,17 +635,60 @@
         selectedMonth = now.Month;
 
         await LoadCategories();
-        await ShowBudget();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !clickOutsideRegistered)
+        if (isDisposed)
         {
-            dropdownDotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("registerClickOutside", "categoryDropdown", dropdownDotNetRef);
-            clickOutsideRegistered = true;
+            return;
         }
+
+        await EnsureInitialRestoreCompletedAsync();
+    }
+
+    private async Task EnsureInitialRestoreCompletedAsync()
+    {
+        if (isDisposed || hasCompletedInitialRestore || isRestoringViewState)
+        {
+            return;
+        }
+
+        isRestoringViewState = true;
+
+        try
+        {
+            await RestoreViewStateAsync();
+            await ApplyFiltersAsync(force: true);
+            hasCompletedInitialRestore = true;
+            viewStateInitialized = true;
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+        catch (JSException)
+        {
+            return;
+        }
+        finally
+        {
+            isRestoringViewState = false;
+        }
+
+        if (shouldPersistRestoredViewState)
+        {
+            shouldPersistRestoredViewState = false;
+            await PersistViewStateAsync();
+        }
+
+        if (pendingViewStatePersistence)
+        {
+            pendingViewStatePersistence = false;
+            await PersistViewStateAsync();
+        }
+
+        await RequestRenderAsync();
     }
 
     private async Task LoadCategories()
@@ -423,7 +712,7 @@
 
             if (budgetId == 0)
             {
-                await ShowStatusMessageAsync("Najpierw dodaj budzet.", true);
+                await ShowStatusMessageAsync("Najpierw dodaj bud\u017cet.", true);
                 return;
             }
 
@@ -443,7 +732,7 @@
 
             if (!response.IsSuccessStatusCode)
             {
-                await ShowStatusMessageAsync("Nie udalo sie dodac wydatku.", true);
+                await ShowStatusMessageAsync("Nie uda\u0142o si\u0119 doda\u0107 wydatku.", true);
                 return;
             }
 
@@ -451,12 +740,12 @@
             amount = 0;
             newExpenseCategoryId = categories.FirstOrDefault()?.Id ?? 0;
 
-            await ShowBudget();
+            await ApplyFiltersNowAsync(force: true);
             await ShowExpenseAddedMessageAsync();
         }
         catch
         {
-            await ShowStatusMessageAsync("Wystapil blad podczas dodawania wydatku.", true);
+            await ShowStatusMessageAsync("Wyst\u0105pi\u0142 b\u0142\u0105d podczas dodawania wydatku.", true);
         }
     }
 
@@ -470,7 +759,7 @@
             return;
         }
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunac?");
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usun\u0105\u0107?");
         if (!confirmed)
         {
             return;
@@ -482,15 +771,15 @@
 
             if (!response.IsSuccessStatusCode)
             {
-                await ShowStatusMessageAsync("Nie udalo sie usunac wydatku.", true);
+                await ShowStatusMessageAsync("Nie uda\u0142o si\u0119 usun\u0105\u0107 wydatku.", true);
                 return;
             }
 
-            await ShowBudget();
+            await ApplyFiltersNowAsync(force: true);
         }
         catch
         {
-            await ShowStatusMessageAsync("Wystapil blad podczas usuwania wydatku.", true);
+            await ShowStatusMessageAsync("Wyst\u0105pi\u0142 b\u0142\u0105d podczas usuwania wydatku.", true);
         }
     }
 
@@ -529,25 +818,88 @@
         if (response.IsSuccessStatusCode)
         {
             editingExpenseId = null;
-            await ShowBudget();
+            await ApplyFiltersNowAsync(force: true);
         }
         else
         {
-            statusMessage = "Błąd zapisu wydatku";
+            statusMessage = "B\u0142\u0105d zapisu wydatku";
         }
     }
 
-    private async Task ShowBudget()
+    private async Task ScheduleFiltersAsync()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        ResetToFirstPage();
+        await PersistViewStateAsync();
+        var filterState = GetCurrentFilterState();
+        if (filterState == lastScheduledFilterState)
+        {
+            return;
+        }
+
+        lastScheduledFilterState = filterState;
+        var cancellationTokenSource = ReplaceFilterDebounceCancellationTokenSource();
+
+        try
+        {
+            // Keep only the latest pending filter refresh while the user is still typing.
+            await Task.Delay(FilterDebounceDelayMs, cancellationTokenSource.Token);
+            await ApplyFiltersAsync(cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(filterDebounceCts, cancellationTokenSource))
+            {
+                filterDebounceCts = null;
+            }
+
+            SafeDisposeCancellationTokenSource(cancellationTokenSource);
+        }
+    }
+
+    private async Task ApplyFiltersNowAsync(bool force = false)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        CancelPendingFilterRefresh();
+        await ApplyFiltersAsync(force: force);
+    }
+
+    private async Task ApplyFiltersAsync(CancellationToken cancellationToken = default, bool force = false)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        var filterState = GetCurrentFilterState();
+        if (!force && filterState == lastAppliedFilterState)
+        {
+            lastScheduledFilterState = filterState;
+            return;
+        }
+
+        var requestCancellationTokenSource = BeginFilterRequest(cancellationToken, out var requestVersion);
+
         if (minAmountFilter.HasValue && maxAmountFilter.HasValue && minAmountFilter.Value > maxAmountFilter.Value)
         {
-            await ShowStatusMessageAsync("Nieprawidlowy zakres kwoty.", true);
+            await ShowStatusMessageAsync("Nieprawid\u0142owy zakres kwoty.", true);
             return;
         }
 
         if (fromDateFilter.HasValue && toDateFilter.HasValue && fromDateFilter.Value.Date > toDateFilter.Value.Date)
         {
-            await ShowStatusMessageAsync("Nieprawidlowy okres.", true);
+            await ShowStatusMessageAsync("Nieprawid\u0142owy okres.", true);
             return;
         }
 
@@ -589,44 +941,336 @@
 
         try
         {
-            var data = await Http.GetFromJsonAsync<BudgetDetailsResponse>(url);
+            var data = await Http.GetFromJsonAsync<BudgetDetailsResponse>(url, requestCancellationTokenSource.Token);
+
+            if (!CanApplyFilterResult(requestVersion, requestCancellationTokenSource.Token))
+            {
+                return;
+            }
 
             if (data is null)
             {
                 currentBudget = null;
-                await ShowStatusMessageAsync("Nie znaleziono budzetu dla wybranego miesiaca.", true);
+                lastAppliedFilterState = filterState;
+                lastScheduledFilterState = filterState;
+                ResetToFirstPage();
+                await ShowStatusMessageAsync("Nie znaleziono bud\u017cetu dla wybranego miesi\u0105ca.", true);
                 return;
             }
 
             currentBudget = data;
             currentBudgetId = data.Id;
+            lastAppliedFilterState = filterState;
+            lastScheduledFilterState = filterState;
+            EnsureCurrentPageInRange();
             ClearStatusMessage();
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch
         {
-            await ShowStatusMessageAsync("Blad podczas pobierania danych.", true);
+            if (!isDisposed && CanApplyFilterResult(requestVersion, CancellationToken.None))
+            {
+                await ShowStatusMessageAsync("B\u0142\u0105d podczas pobierania danych.", true);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(filterRequestCts, requestCancellationTokenSource))
+            {
+                filterRequestCts = null;
+            }
+
+            SafeDisposeCancellationTokenSource(requestCancellationTokenSource);
         }
     }
 
-    private async Task LoadSelectedBudget()
+    private CancellationTokenSource ReplaceFilterDebounceCancellationTokenSource()
     {
-        await ShowBudget();
+        CancelPendingFilterRefresh();
+        filterDebounceCts = new CancellationTokenSource();
+        return filterDebounceCts;
+    }
+
+    private CancellationTokenSource BeginFilterRequest(CancellationToken cancellationToken, out int requestVersion)
+    {
+        CancelInFlightFilterRequest();
+        filterRequestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        requestVersion = ++filterRequestVersion;
+        return filterRequestCts;
+    }
+
+    private bool IsLatestFilterRequest(int requestVersion)
+    {
+        return requestVersion == filterRequestVersion;
+    }
+
+    private bool CanApplyFilterResult(int requestVersion, CancellationToken cancellationToken)
+    {
+        return !isDisposed
+            && !cancellationToken.IsCancellationRequested
+            && IsLatestFilterRequest(requestVersion);
+    }
+
+    private string GetCurrentFilterState()
+    {
+        var normalizedCategoryIds = selectedCategoryIds
+            .OrderBy(categoryId => categoryId)
+            .ToArray();
+
+        return string.Join("|",
+            searchTerm.Trim(),
+            fromDateFilter?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
+            toDateFilter?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
+            minAmountFilter?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            maxAmountFilter?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            string.Join(",", normalizedCategoryIds));
+    }
+
+    private BudgetViewState CreateViewState()
+    {
+        return new BudgetViewState
+        {
+            SearchTerm = searchTerm,
+            FromDate = fromDateFilter,
+            ToDate = toDateFilter,
+            MinAmount = minAmountFilter,
+            MaxAmount = maxAmountFilter,
+            SelectedCategoryIds = selectedCategoryIds
+                .OrderBy(categoryId => categoryId)
+                .ToList(),
+            SortColumn = currentSortColumn,
+            SortDirection = currentSortDirection
+        };
+    }
+
+    private async Task RestoreViewStateAsync()
+    {
+        var restoredViewState = await LoadViewStateAsync();
+        if (restoredViewState is null)
+        {
+            ApplyDefaultViewState();
+            return;
+        }
+
+        var savedState = restoredViewState.ViewState;
+        searchTerm = savedState.SearchTerm?.Trim() ?? string.Empty;
+        fromDateFilter = savedState.FromDate;
+        toDateFilter = savedState.ToDate;
+        minAmountFilter = savedState.MinAmount;
+        maxAmountFilter = savedState.MaxAmount;
+        currentSortColumn = Enum.IsDefined(savedState.SortColumn)
+            ? savedState.SortColumn
+            : BudgetSortColumn.Date;
+        currentSortDirection = Enum.IsDefined(savedState.SortDirection)
+            ? savedState.SortDirection
+            : SortDirection.Descending;
+        selectedCategoryIds = GetValidSelectedCategoryIds(savedState.SelectedCategoryIds);
+        RefreshCategoryFilterUi();
+        shouldPersistRestoredViewState = restoredViewState.RequiresPersistenceRewrite;
+        ResetToFirstPage();
+    }
+
+    private List<int> GetValidSelectedCategoryIds(IEnumerable<int>? categoryIds)
+    {
+        return categoryIds?
+            .Distinct()
+            .Where(categoryId => categoryId > 0)
+            .ToList()
+            ?? new List<int>();
+    }
+
+    private void RefreshCategoryFilterUi()
+    {
+        categoryFilterRenderVersion++;
+    }
+
+    private void ApplyDefaultViewState()
+    {
+        searchTerm = string.Empty;
+        fromDateFilter = null;
+        toDateFilter = null;
+        minAmountFilter = null;
+        maxAmountFilter = null;
+        selectedCategoryIds.Clear();
+        currentSortColumn = BudgetSortColumn.Date;
+        currentSortDirection = SortDirection.Descending;
+        RefreshCategoryFilterUi();
+        ResetToFirstPage();
+    }
+
+    private async Task PersistViewStateAsync()
+    {
+        if (isDisposed || !viewStateInitialized || isRestoringViewState)
+        {
+            pendingViewStatePersistence = !isDisposed;
+            return;
+        }
+
+        try
+        {
+            pendingViewStatePersistence = false;
+            var viewState = CreateViewState();
+            var payload = JsonSerializer.Serialize(viewState, BudgetViewStateJsonOptions);
+            await JS.InvokeVoidAsync("localStorage.setItem", BudgetViewStateStorageKey, payload);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task<RestoredBudgetViewState?> LoadViewStateAsync()
+    {
+        if (isDisposed)
+        {
+            return null;
+        }
+
+        try
+        {
+            var payload = await JS.InvokeAsync<string?>("localStorage.getItem", BudgetViewStateStorageKey);
+
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                return null;
+            }
+
+            using var document = JsonDocument.Parse(payload);
+            var viewState = JsonSerializer.Deserialize<BudgetViewState>(payload, BudgetViewStateJsonOptions);
+            if (viewState is null)
+            {
+                return null;
+            }
+
+            var restoredCategoryIds = GetValidSelectedCategoryIds(viewState.SelectedCategoryIds);
+            var requiresPersistenceRewrite = false;
+
+            if (restoredCategoryIds.Count == 0)
+            {
+                var legacyCategoryIds = GetLegacySelectedCategoryIds(document.RootElement);
+                if (legacyCategoryIds.Count > 0)
+                {
+                    restoredCategoryIds = legacyCategoryIds;
+                    requiresPersistenceRewrite = true;
+                }
+            }
+
+            viewState.SelectedCategoryIds = restoredCategoryIds;
+            return new RestoredBudgetViewState(viewState, requiresPersistenceRewrite);
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (JSException)
+        {
+            throw;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private List<int> GetLegacySelectedCategoryIds(JsonElement rootElement)
+    {
+        if (!rootElement.TryGetProperty("SelectedCategories", out var selectedCategoriesElement)
+            || selectedCategoriesElement.ValueKind != JsonValueKind.Array)
+        {
+            return new List<int>();
+        }
+
+        return selectedCategoriesElement
+            .EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString())
+            .Where(categoryName => !string.IsNullOrWhiteSpace(categoryName))
+            .Select(categoryName => categories
+                .FirstOrDefault(category =>
+                    string.Equals(category.Name, categoryName, StringComparison.CurrentCultureIgnoreCase))
+                ?.Id)
+            .Where(categoryId => categoryId.HasValue)
+            .Select(categoryId => categoryId!.Value)
+            .Distinct()
+            .ToList();
     }
 
     private bool IsAnyFilterActive()
     {
         return !string.IsNullOrWhiteSpace(searchTerm)
-            || selectedCategories.Any()
+            || selectedCategoryIds.Any()
             || fromDateFilter != null
             || toDateFilter != null
             || minAmountFilter != null
             || maxAmountFilter != null;
     }
 
-    private void ResetFilters()
+    private void CancelPendingFilterRefresh()
     {
+        if (filterDebounceCts is null)
+        {
+            return;
+        }
+
+        SafeCancelCancellationTokenSource(filterDebounceCts);
+        SafeDisposeCancellationTokenSource(filterDebounceCts);
+        filterDebounceCts = null;
+    }
+
+    private void CancelInFlightFilterRequest()
+    {
+        if (filterRequestCts is null)
+        {
+            return;
+        }
+
+        SafeCancelCancellationTokenSource(filterRequestCts);
+        SafeDisposeCancellationTokenSource(filterRequestCts);
+        filterRequestCts = null;
+    }
+
+    private static void SafeCancelCancellationTokenSource(CancellationTokenSource cancellationTokenSource)
+    {
+        try
+        {
+            cancellationTokenSource.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static void SafeDisposeCancellationTokenSource(CancellationTokenSource cancellationTokenSource)
+    {
+        try
+        {
+            cancellationTokenSource.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task ResetFilters()
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        var hadActiveFilters = IsAnyFilterActive();
+        if (!hadActiveFilters && HasDefaultSort)
+        {
+            return;
+        }
+
         searchTerm = string.Empty;
-        selectedCategories.Clear();
+        selectedCategoryIds.Clear();
+        RefreshCategoryFilterUi();
         fromDateFilter = null;
         toDateFilter = null;
         minAmountFilter = null;
@@ -634,6 +1278,13 @@
         showDateFilter = false;
         showAmountFilter = false;
         isDropdownOpen = false;
+        lastScheduledFilterState = string.Empty;
+        currentSortColumn = BudgetSortColumn.Date;
+        currentSortDirection = SortDirection.Descending;
+        ResetToFirstPage();
+        await PersistViewStateAsync();
+
+        await ApplyFiltersNowAsync();
     }
 
     private void ToggleDropdown()
@@ -641,51 +1292,77 @@
         isDropdownOpen = !isDropdownOpen;
     }
 
-    private void AddCategory(string category)
+    private async Task ToggleCategoryAsync(int categoryId)
     {
-        if (!selectedCategories.Contains(category))
+        if (isRestoringViewState)
         {
-            selectedCategories.Add(category);
+            return;
         }
+
+        if (selectedCategoryIds.Contains(categoryId))
+        {
+            selectedCategoryIds.Remove(categoryId);
+        }
+        else
+        {
+            selectedCategoryIds.Add(categoryId);
+        }
+
+        RefreshCategoryFilterUi();
+        ResetToFirstPage();
+        await ApplyFiltersNowAsync();
+        await PersistViewStateAsync();
     }
 
-    private void RemoveCategory(string category)
+    private async Task ClearCategories()
     {
-        selectedCategories.Remove(category);
-    }
+        if (isRestoringViewState)
+        {
+            return;
+        }
 
-    private void ClearCategories()
-    {
-        selectedCategories.Clear();
-    }
+        if (!selectedCategoryIds.Any())
+        {
+            return;
+        }
 
-    [JSInvokable]
-    public void CloseDropdown()
-    {
-        isDropdownOpen = false;
-        StateHasChanged();
+        selectedCategoryIds.Clear();
+        RefreshCategoryFilterUi();
+        ResetToFirstPage();
+        await ApplyFiltersNowAsync();
+        await PersistViewStateAsync();
     }
 
     private async Task ToggleDateFilterAsync()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         showDateFilter = !showDateFilter;
 
         if (showDateFilter)
         {
             showAmountFilter = false;
-            await InvokeAsync(StateHasChanged);
+            await RequestRenderAsync();
             await PositionPanel("okresBtn", "okresPanel");
         }
     }
 
     private async Task ToggleAmountFilterAsync()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         showAmountFilter = !showAmountFilter;
 
         if (showAmountFilter)
         {
             showDateFilter = false;
-            await InvokeAsync(StateHasChanged);
+            await RequestRenderAsync();
             await PositionPanel("kwotaBtn", "kwotaPanel");
         }
     }
@@ -699,27 +1376,41 @@
 
     private async Task ShowExpenseAddedMessageAsync()
     {
-        expenseAddedMessage = "Wydatek został dodany";
-        await InvokeAsync(StateHasChanged);
+        if (isDisposed)
+        {
+            return;
+        }
+        expenseAddedMessage = "Wydatek zosta\u0142 dodany";
+        await RequestRenderAsync();
         await Task.Delay(2000);
+        if (isDisposed)
+        {
+            return;
+        }
+
         expenseAddedMessage = string.Empty;
-        await InvokeAsync(StateHasChanged);
+        await RequestRenderAsync();
     }
 
     private async Task ShowStatusMessageAsync(string message, bool isError)
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         statusMessageVersion++;
         var version = statusMessageVersion;
         statusMessage = message;
         isStatusError = isError;
-        await InvokeAsync(StateHasChanged);
+        await RequestRenderAsync();
         await Task.Delay(2500);
 
-        if (version == statusMessageVersion)
+        if (!isDisposed && version == statusMessageVersion)
         {
             statusMessage = string.Empty;
             isStatusError = false;
-            await InvokeAsync(StateHasChanged);
+            await RequestRenderAsync();
         }
     }
 
@@ -728,6 +1419,28 @@
         statusMessageVersion++;
         statusMessage = string.Empty;
         isStatusError = false;
+    }
+
+    private async Task RequestRenderAsync()
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await InvokeAsync(() =>
+            {
+                if (!isDisposed)
+                {
+                    StateHasChanged();
+                }
+            });
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     private static string FormatCurrency(decimal value)
@@ -749,17 +1462,63 @@
     {
         if (value < MinExpenseAmount)
         {
-            await ShowStatusMessageAsync("Kwota musi byc wieksza lub rowna 0.01 PLN.", true);
+            await ShowStatusMessageAsync("Kwota musi by\u0107 wi\u0119ksza lub r\u00f3wna 0.01 PLN.", true);
             return false;
         }
 
         if (value > MaxExpenseAmount)
         {
-            await ShowStatusMessageAsync("Kwota nie moze byc wieksza niz 999999999 PLN.", true);
+            await ShowStatusMessageAsync("Kwota nie mo\u017ce by\u0107 wi\u0119ksza ni\u017c 999999999 PLN.", true);
             return false;
         }
 
         return true;
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        CancelPendingFilterRefresh();
+        CancelInFlightFilterRequest();
+    }
+
+    private enum BudgetSortColumn
+    {
+        Name,
+        Date,
+        Category,
+        Amount
+    }
+
+    private enum SortDirection
+    {
+        Ascending,
+        Descending
+    }
+
+    private sealed class BudgetViewState
+    {
+        public string SearchTerm { get; set; } = string.Empty;
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public decimal? MinAmount { get; set; }
+        public decimal? MaxAmount { get; set; }
+        [JsonPropertyName("selectedCategoryIds")]
+        public List<int> SelectedCategoryIds { get; set; } = new();
+        public BudgetSortColumn SortColumn { get; set; } = BudgetSortColumn.Date;
+        public SortDirection SortDirection { get; set; } = SortDirection.Descending;
+    }
+
+    private sealed class RestoredBudgetViewState
+    {
+        public RestoredBudgetViewState(BudgetViewState viewState, bool requiresPersistenceRewrite)
+        {
+            ViewState = viewState;
+            RequiresPersistenceRewrite = requiresPersistenceRewrite;
+        }
+
+        public BudgetViewState ViewState { get; }
+        public bool RequiresPersistenceRewrite { get; }
     }
 
     public class Category
@@ -946,29 +1705,19 @@
 
     .budget-filter-category-menu {
         width: 260px;
+        max-height: 280px;
+        margin: 0;
+        padding: 0.5rem;
+        overflow-y: auto;
+        list-style: none;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    .budget-filter-category-item:hover {
-        background-color: #dee2e6;
-    }
-
-    .selected-category {
-        background-color: #e9ecef;
-    }
-
-    .selected-category:hover {
-        background-color: #e9ecef;
-        cursor: default;
-    }
-
-    .budget-filter-category-action {
-        min-width: 30px;
-    }
-
-    .budget-filter-category-item {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .budget-filter-category-panel {
+        min-width: 260px;
     }
 
     .category-name {
@@ -976,6 +1725,41 @@
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+    }
+
+    .budget-filter-category-option {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.45rem 0.6rem;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+    }
+
+    .budget-filter-category-option:hover {
+        background-color: #dee2e6;
+    }
+
+    .budget-filter-category-option-selected {
+        background-color: #e9ecef;
+        color: var(--bs-secondary-color);
+        font-weight: 500;
+    }
+
+    .budget-filter-category-option-selected:hover {
+        background-color: #e9ecef;
+        cursor: default;
+    }
+
+    .budget-filter-category-indicator {
+        min-width: 1.2rem;
+        text-align: center;
+        font-weight: 700;
     }
 
     .budget-filter-clear-button:hover {

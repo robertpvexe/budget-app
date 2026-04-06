@@ -39,21 +39,12 @@
     "Income": 6500,
     "Expenses": [
       {
-        "Id": 11,
-        "Name": "Wino",
-        "Amount": 80.01,
-        "CreatedAt": "2026-04-05T00:00:00",
-        "CategoryId": 1,
-        "CategoryName": "Jedzenie",
-        "MonthlyBudgetId": 2
-      },
-      {
         "Id": 13,
         "Name": "Woda",
         "Amount": 69.99,
         "CreatedAt": "2026-04-05T19:57:14.0916788+02:00",
-        "CategoryId": 7,
-        "CategoryName": "Sdvdfvsdvsdvsdvsvsvszvzsvszdvsdvzsdvzsvdsdvszvsdvs",
+        "CategoryId": 2,
+        "CategoryName": "Napoje",
         "MonthlyBudgetId": 2
       },
       {
@@ -90,6 +81,141 @@
         "CreatedAt": "2026-04-06T12:26:42.9837727+02:00",
         "CategoryId": 6,
         "CategoryName": "Inne",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 18,
+        "Name": "Apap",
+        "Amount": 14,
+        "CreatedAt": "2026-04-06T17:35:14.2021349+02:00",
+        "CategoryId": 8,
+        "CategoryName": "Leki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 19,
+        "Name": "Nimesil",
+        "Amount": 100,
+        "CreatedAt": "2026-04-06T17:36:36.9655651+02:00",
+        "CategoryId": 8,
+        "CategoryName": "Leki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 21,
+        "Name": "Internet",
+        "Amount": 120,
+        "CreatedAt": "2026-04-06T17:36:51.6085978+02:00",
+        "CategoryId": 3,
+        "CategoryName": "Rachunki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 22,
+        "Name": "R\u00F3\u017Ce",
+        "Amount": 69,
+        "CreatedAt": "2026-04-06T17:36:58.9579567+02:00",
+        "CategoryId": 4,
+        "CategoryName": "Randki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 23,
+        "Name": "Tymbark",
+        "Amount": 11,
+        "CreatedAt": "2026-04-06T17:37:17.7088425+02:00",
+        "CategoryId": 2,
+        "CategoryName": "Napoje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 24,
+        "Name": "Kurczak",
+        "Amount": 29,
+        "CreatedAt": "2026-04-06T17:37:27.5457864+02:00",
+        "CategoryId": 1,
+        "CategoryName": "Jedzenie",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 25,
+        "Name": "Rata kredytu",
+        "Amount": 1989,
+        "CreatedAt": "2026-04-06T17:37:40.1650439+02:00",
+        "CategoryId": 3,
+        "CategoryName": "Rachunki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 26,
+        "Name": "Netflix",
+        "Amount": 120,
+        "CreatedAt": "2026-04-06T17:38:00.0205602+02:00",
+        "CategoryId": 10,
+        "CategoryName": "Subskrypcje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 27,
+        "Name": "HBO Max",
+        "Amount": 80,
+        "CreatedAt": "2026-04-06T17:38:10.7096762+02:00",
+        "CategoryId": 10,
+        "CategoryName": "Subskrypcje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 28,
+        "Name": "Disney \u002B ",
+        "Amount": 60,
+        "CreatedAt": "2026-04-06T17:38:17.793183+02:00",
+        "CategoryId": 10,
+        "CategoryName": "Subskrypcje",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 29,
+        "Name": "Karta kredytowa",
+        "Amount": 3000,
+        "CreatedAt": "2026-04-06T17:38:24.7437779+02:00",
+        "CategoryId": 9,
+        "CategoryName": "Kredyt",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 30,
+        "Name": "Kokolino",
+        "Amount": 55,
+        "CreatedAt": "2026-04-06T17:38:51.3937521+02:00",
+        "CategoryId": 11,
+        "CategoryName": "Chemia",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 31,
+        "Name": "Kostki do zmywarki",
+        "Amount": 150,
+        "CreatedAt": "2026-04-06T17:38:59.5174929+02:00",
+        "CategoryId": 11,
+        "CategoryName": "Chemia",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 32,
+        "Name": "Gry planszowe ",
+        "Amount": 250,
+        "CreatedAt": "2026-04-06T17:39:18.7181914+02:00",
+        "CategoryId": 4,
+        "CategoryName": "Randki",
+        "MonthlyBudgetId": 2
+      },
+      {
+        "Id": 33,
+        "Name": "Woda",
+        "Amount": 10,
+        "CreatedAt": "2026-04-06T17:44:53.5459007+02:00",
+        "CategoryId": 2,
+        "CategoryName": "Napoje",
         "MonthlyBudgetId": 2
       }
     ]
