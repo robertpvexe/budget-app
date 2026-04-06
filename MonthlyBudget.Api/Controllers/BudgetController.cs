@@ -186,16 +186,46 @@ public class BudgetController : ControllerBase
     }
 
     [HttpGet("by-month/{yearMonth}")]
-    public IActionResult GetByMonth(string yearMonth, [FromQuery] int? categoryId = null)
+    public ActionResult<BudgetDetailsResponse> GetByMonth(
+        string yearMonth,
+        [FromQuery] string? search = null,
+        [FromQuery] int? categoryId = null,
+        [FromQuery] decimal? minAmount = null,
+        [FromQuery] decimal? maxAmount = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
     {
         Console.WriteLine($"=== GET BY MONTH === {yearMonth}");
 
-        var budget = _budgetService.GetByMonth(yearMonth, categoryId);
+        if (!IsValidMonth(yearMonth))
+        {
+            return BadRequest("Month must have format yyyy-MM.");
+        }
+
+        var budget = _budgetService.GetByMonth(
+            yearMonth,
+            search,
+            categoryId,
+            minAmount,
+            maxAmount,
+            fromDate,
+            toDate);
 
         if (budget is null)
+        {
             return NotFound("Budget not found");
+        }
 
-        return Ok(budget);
+        return Ok(new BudgetDetailsResponse
+        {
+            Id = budget.Id,
+            Month = budget.Month,
+            Income = budget.Income,
+            Expenses = budget.Expenses,
+            TotalExpenses = budget.GetTotalExpenses(),
+            Remaining = budget.GetRemainingAmount(),
+            Percentage = budget.GetExpensePercentage()
+        });
     }
 
     [HttpGet("filter")]

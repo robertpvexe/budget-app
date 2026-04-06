@@ -15,5 +15,12 @@ public interface IBudgetService
     BudgetModel? FilterBudget(int year, int month, int? categoryId, DateTime? from, DateTime? to);
     BudgetModel? GetMonthlyBudget(int id, int? categoryId = null);
     BudgetModel? GetMonthlyBudget(string month, int? categoryId = null);
-    BudgetModel? GetByMonth(string yearMonth, int? categoryId = null);
+    BudgetModel? GetByMonth(
+        string yearMonth,
+        string? search = null,
+        int? categoryId = null,
+        decimal? minAmount = null,
+        decimal? maxAmount = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null);
 }

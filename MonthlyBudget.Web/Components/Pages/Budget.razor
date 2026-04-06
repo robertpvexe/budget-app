@@ -78,18 +78,40 @@
                                @bind="searchTerm" />
                     </div>
 
-                    <input type="text"
-                           class="form-control form-control-sm budget-filter-period"
-                           placeholder="Okres"
-                           @bind="periodFilter" />
+                    <div class="d-flex align-items-center gap-1 budget-filter-group budget-filter-date-group">
+                        <input type="date"
+                               class="form-control form-control-sm budget-filter-date"
+                               placeholder="Od"
+                               @bind="fromDateFilter"
+                               @bind:format="yyyy-MM-dd" />
 
-                    <input type="text"
-                           class="form-control form-control-sm budget-filter-amount"
-                           placeholder="Kwota"
-                           @bind="amountFilterText" />
+                        <input type="date"
+                               class="form-control form-control-sm budget-filter-date"
+                               placeholder="Do"
+                               @bind="toDateFilter"
+                               @bind:format="yyyy-MM-dd" />
+                    </div>
 
-                    <select class="form-select form-select-sm budget-filter-category" @bind="selectedCategoryId">
-                        <option value="">Kategoria</option>
+                    <div class="d-flex align-items-center gap-1 budget-filter-group budget-filter-amount-group">
+                        <input type="number"
+                               class="form-control form-control-sm budget-filter-amount"
+                               placeholder="Od"
+                               min="0.01"
+                               max="999999999"
+                               step="0.01"
+                               @bind="minAmountFilter" />
+
+                        <input type="number"
+                               class="form-control form-control-sm budget-filter-amount"
+                               placeholder="Do"
+                               min="0.01"
+                               max="999999999"
+                               step="0.01"
+                               @bind="maxAmountFilter" />
+                    </div>
+
+                    <select class="@CategoryFilterSelectClass" @bind="selectedCategoryId">
+                        <option value="">Wszystkie</option>
                         @foreach (var cat in categories)
                         {
                             <option value="@cat.Id">@cat.Name</option>
@@ -214,8 +236,10 @@
     private string lastExpenseClickMessage = string.Empty;
     private string expenseAddedMessage = string.Empty;
     private string searchTerm = string.Empty;
-    private string periodFilter = string.Empty;
-    private string amountFilterText = string.Empty;
+    private DateTime? fromDateFilter;
+    private DateTime? toDateFilter;
+    private decimal? minAmountFilter;
+    private decimal? maxAmountFilter;
     private List<Category> categories = new();
     private int? selectedCategoryId;
     private int? editingExpenseId;
@@ -226,10 +250,12 @@
     private BudgetDetailsResponse? currentBudget;
 
     private IEnumerable<ExpenseDto> FilteredExpenses =>
-        currentBudget?.Expenses
-            .Where(e => string.IsNullOrWhiteSpace(searchTerm) ||
-                e.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase))
-            ?? Enumerable.Empty<ExpenseDto>();
+        currentBudget?.Expenses ?? Enumerable.Empty<ExpenseDto>();
+
+    private string CategoryFilterSelectClass =>
+        selectedCategoryId.HasValue
+            ? "form-select form-select-sm budget-filter-category"
+            : "form-select form-select-sm budget-filter-category text-muted";
 
     protected override async Task OnInitializedAsync()
     {
@@ -378,11 +404,57 @@
 
     private async Task ShowBudget()
     {
-        var url = $"http://localhost:5226/api/Budget/filter?year={selectedYear}&month={selectedMonth}";
+        if (minAmountFilter.HasValue && maxAmountFilter.HasValue && minAmountFilter.Value > maxAmountFilter.Value)
+        {
+            await ShowStatusMessageAsync("Nieprawidlowy zakres kwoty.", true);
+            return;
+        }
+
+        if (fromDateFilter.HasValue && toDateFilter.HasValue && fromDateFilter.Value.Date > toDateFilter.Value.Date)
+        {
+            await ShowStatusMessageAsync("Nieprawidlowy okres.", true);
+            return;
+        }
+
+        var yearMonth = $"{selectedYear}-{selectedMonth:D2}";
+        var queryParams = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            queryParams.Add($"search={Uri.EscapeDataString(searchTerm.Trim())}");
+        }
 
         if (selectedCategoryId.HasValue && selectedCategoryId.Value != 0)
         {
-            url += $"&categoryId={selectedCategoryId.Value}";
+            queryParams.Add($"categoryId={selectedCategoryId.Value}");
+        }
+
+        if (minAmountFilter.HasValue)
+        {
+            queryParams.Add($"minAmount={minAmountFilter.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (maxAmountFilter.HasValue)
+        {
+            queryParams.Add($"maxAmount={maxAmountFilter.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (fromDateFilter.HasValue)
+        {
+            queryParams.Add($"fromDate={Uri.EscapeDataString(fromDateFilter.Value.Date.ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        if (toDateFilter.HasValue)
+        {
+            var toDate = toDateFilter.Value.Date.AddDays(1).AddTicks(-1);
+            queryParams.Add($"toDate={Uri.EscapeDataString(toDate.ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        var url = $"http://localhost:5226/api/budget/by-month/{yearMonth}";
+
+        if (queryParams.Count > 0)
+        {
+            url += $"?{string.Join("&", queryParams)}";
         }
 
         try
@@ -619,11 +691,27 @@
         flex: 1 1 280px;
     }
 
-    .budget-filter-period,
+    .budget-filter-group {
+        flex: 0 0 auto;
+    }
+
+    .budget-filter-date,
     .budget-filter-amount,
     .budget-filter-category {
         width: 140px;
         min-width: 140px;
+    }
+
+    .budget-filter-category.text-muted {
+        color: var(--bs-secondary-color);
+    }
+
+    .budget-filter-category option {
+        color: var(--bs-body-color);
+    }
+
+    .budget-filter-category option[value=""] {
+        color: var(--bs-secondary-color);
     }
 
     .budget-filter-button {

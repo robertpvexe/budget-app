@@ -307,7 +307,7 @@ public class BudgetService : IBudgetService
         lock (_lock)
         {
             var budget = _budgets.FirstOrDefault(b => b.Id == id);
-            return PrepareBudgetForResponse(budget, categoryId);
+            return PrepareBudgetForResponse(budget, categoryId: categoryId);
         }
     }
 
@@ -316,11 +316,18 @@ public class BudgetService : IBudgetService
         lock (_lock)
         {
             var budget = _budgets.FirstOrDefault(b => b.Month == month);
-            return PrepareBudgetForResponse(budget, categoryId);
+            return PrepareBudgetForResponse(budget, categoryId: categoryId);
         }
     }
 
-    public BudgetModel? GetByMonth(string yearMonth, int? categoryId = null)
+    public BudgetModel? GetByMonth(
+        string yearMonth,
+        string? search = null,
+        int? categoryId = null,
+        decimal? minAmount = null,
+        decimal? maxAmount = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null)
     {
         lock (_lock)
         {
@@ -332,11 +339,25 @@ public class BudgetService : IBudgetService
             }
 
             var budget = _budgets.FirstOrDefault(b => b.Month == yearMonth);
-            return PrepareBudgetForResponse(budget, categoryId);
+            return PrepareBudgetForResponse(
+                budget,
+                search,
+                categoryId,
+                minAmount,
+                maxAmount,
+                fromDate,
+                toDate);
         }
     }
 
-    private BudgetModel? PrepareBudgetForResponse(BudgetModel? budget, int? categoryId)
+    private BudgetModel? PrepareBudgetForResponse(
+        BudgetModel? budget,
+        string? search = null,
+        int? categoryId = null,
+        decimal? minAmount = null,
+        decimal? maxAmount = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null)
     {
         if (budget is null)
         {
@@ -362,13 +383,62 @@ public class BudgetService : IBudgetService
                 .ToList()
         };
 
+        responseBudget.Expenses = ApplyExpenseFilters(
+            responseBudget.Expenses,
+            search,
+            categoryId,
+            minAmount,
+            maxAmount,
+            fromDate,
+            toDate)
+            .ToList();
+
+        return responseBudget;
+    }
+
+    private static IEnumerable<Expense> ApplyExpenseFilters(
+        IEnumerable<Expense> expenses,
+        string? search,
+        int? categoryId,
+        decimal? minAmount,
+        decimal? maxAmount,
+        DateTime? fromDate,
+        DateTime? toDate)
+    {
+        var filteredExpenses = expenses;
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            filteredExpenses = filteredExpenses.Where(expense =>
+                expense.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+        }
+
         if (categoryId.HasValue)
         {
-            responseBudget.Expenses = responseBudget.Expenses
-                .Where(e => e.CategoryId == categoryId.Value)
-                .ToList();
+            filteredExpenses = filteredExpenses.Where(expense => expense.CategoryId == categoryId.Value);
         }
-        return responseBudget;
+
+        if (minAmount.HasValue)
+        {
+            filteredExpenses = filteredExpenses.Where(expense => expense.Amount >= minAmount.Value);
+        }
+
+        if (maxAmount.HasValue)
+        {
+            filteredExpenses = filteredExpenses.Where(expense => expense.Amount <= maxAmount.Value);
+        }
+
+        if (fromDate.HasValue)
+        {
+            filteredExpenses = filteredExpenses.Where(expense => expense.CreatedAt >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            filteredExpenses = filteredExpenses.Where(expense => expense.CreatedAt <= toDate.Value);
+        }
+
+        return filteredExpenses;
     }
 
     private void SaveData()
