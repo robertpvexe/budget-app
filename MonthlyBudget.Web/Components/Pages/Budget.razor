@@ -69,75 +69,35 @@
     {
         <section class="budget-card">
             <form class="mb-3">
-                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap budget-filters-row">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <div class="col-auto">
-                        <select class="form-select form-select-sm" @bind="selectedYear">
-                            <option value="@selectedYear" disabled>Rok</option>
-                            @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
-                            {
-                                <option value="@year">@year</option>
-                            }
-                        </select>
+                <div class="d-flex align-items-center gap-2 flex-nowrap budget-filters-row">
+                    <div class="input-group input-group-sm budget-filter-search">
+                        <span class="input-group-text" aria-hidden="true">🔍</span>
+                        <input type="text"
+                               class="form-control form-control-sm"
+                               placeholder="Szukaj..."
+                               @bind="searchTerm" />
                     </div>
 
-                    <div class="col-auto">
-                        <select class="form-select form-select-sm" @bind="selectedMonth">
-                            <option value="@selectedMonth" disabled>Miesiąc</option>
-                            <option value="1">Styczeń</option>
-                            <option value="2">Luty</option>
-                            <option value="3">Marzec</option>
-                            <option value="4">Kwiecień</option>
-                            <option value="5">Maj</option>
-                            <option value="6">Czerwiec</option>
-                            <option value="7">Lipiec</option>
-                            <option value="8">Sierpień</option>
-                            <option value="9">Wrzesień</option>
-                            <option value="10">Październik</option>
-                            <option value="11">Listopad</option>
-                            <option value="12">Grudzień</option>
-                        </select>
-                    </div>
+                    <input type="text"
+                           class="form-control form-control-sm budget-filter-period"
+                           placeholder="Okres"
+                           @bind="periodFilter" />
 
-                    <div class="col-auto">
-                        <select class="form-select form-select-sm" @bind="selectedCategoryId">
-                            <option value="">Kategoria</option>
-                            @foreach (var cat in categories)
-                            {
-                                <option value="@cat.Id">@cat.Name</option>
-                            }
-                        </select>
-                    </div>
+                    <input type="text"
+                           class="form-control form-control-sm budget-filter-amount"
+                           placeholder="Kwota"
+                           @bind="amountFilterText" />
 
-                    <div class="col-auto">
-                        <div class="input-group budget-currency-group amount-field-group amount-field-group-sm">
-                            <input type="number"
-                                   class="form-control form-control-sm text-end amount-number-input"
-                                   min="0.01"
-                                   max="999999999"
-                                   step="0.01"
-                                   placeholder="Od"
-                                   @bind="minAmount" />
-                            <span class="input-group-text">PLN</span>
-                        </div>
-                    </div>
+                    <select class="form-select form-select-sm budget-filter-category" @bind="selectedCategoryId">
+                        <option value="">Kategoria</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
 
-                    <div class="col-auto">
-                        <div class="input-group budget-currency-group amount-field-group amount-field-group-sm">
-                            <input type="number"
-                                   class="form-control form-control-sm text-end amount-number-input"
-                                   min="0.01"
-                                   max="999999999"
-                                   step="0.01"
-                                   placeholder="Do"
-                                   @bind="maxAmount" />
-                            <span class="input-group-text">PLN</span>
-                        </div>
-                    </div>
-                    </div>
-
-                    <div class="col-auto ms-auto">
-                        <button type="button" class="btn btn-primary btn-sm" @onclick="LoadSelectedBudget">
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-primary btn-sm budget-filter-button" @onclick="LoadSelectedBudget">
                             Pokaż
                         </button>
                     </div>
@@ -221,12 +181,12 @@
                                 <td class="budget-expense-cell">
                                     @if (editingExpenseId == expense.Id)
                                     {
-                                        <button class="btn btn-success btn-sm" type="button" @onclick="() => SaveEdit(expense.Id)">✔ Zapisz</button>
-                                        <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">❌ Anuluj</button>
+                                        <button class="btn btn-success btn-sm" type="button" @onclick="() => SaveEdit(expense.Id)">Zapisz</button>
+                                        <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">Anuluj</button>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">✏️</button>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">Edytuj</button>
                                         <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usuń</button>
                                     }
                                 </td>
@@ -253,10 +213,11 @@
     private int statusMessageVersion;
     private string lastExpenseClickMessage = string.Empty;
     private string expenseAddedMessage = string.Empty;
+    private string searchTerm = string.Empty;
+    private string periodFilter = string.Empty;
+    private string amountFilterText = string.Empty;
     private List<Category> categories = new();
     private int? selectedCategoryId;
-    private decimal? minAmount;
-    private decimal? maxAmount;
     private int? editingExpenseId;
     private string editingName = string.Empty;
     private decimal editingAmount;
@@ -266,9 +227,8 @@
 
     private IEnumerable<ExpenseDto> FilteredExpenses =>
         currentBudget?.Expenses
-            .Where(e =>
-                (!minAmount.HasValue || e.Amount >= minAmount.Value) &&
-                (!maxAmount.HasValue || e.Amount <= maxAmount.Value))
+            .Where(e => string.IsNullOrWhiteSpace(searchTerm) ||
+                e.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase))
             ?? Enumerable.Empty<ExpenseDto>();
 
     protected override async Task OnInitializedAsync()
@@ -648,6 +608,28 @@
         margin-bottom: 0;
     }
 
+    .budget-filters-row {
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .budget-filter-search {
+        min-width: 240px;
+        max-width: 320px;
+        flex: 1 1 280px;
+    }
+
+    .budget-filter-period,
+    .budget-filter-amount,
+    .budget-filter-category {
+        width: 140px;
+        min-width: 140px;
+    }
+
+    .budget-filter-button {
+        min-width: 90px;
+    }
+
     .amount-field-group {
         width: min(100%, 170px);
         max-width: 170px;
@@ -677,3 +659,4 @@
         line-height: 1.2;
     }
 </style>
+

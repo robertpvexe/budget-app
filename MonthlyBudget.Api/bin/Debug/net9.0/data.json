@@ -41,7 +41,7 @@
       {
         "Id": 11,
         "Name": "Wino",
-        "Amount": 80,
+        "Amount": 80.01,
         "CreatedAt": "2026-04-05T00:00:00",
         "CategoryId": 1,
         "CategoryName": "Jedzenie",
@@ -50,7 +50,7 @@
       {
         "Id": 13,
         "Name": "Woda",
-        "Amount": 60,
+        "Amount": 69.99,
         "CreatedAt": "2026-04-05T19:57:14.0916788+02:00",
         "CategoryId": 2,
         "CategoryName": "Napoje",
