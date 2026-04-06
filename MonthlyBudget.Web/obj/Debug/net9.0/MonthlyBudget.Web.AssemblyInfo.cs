@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MonthlyBudget.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9e57463ed5d164c4f88a622ffa2b9d0d85d9e19a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f289744d9dc56238fadbc1faa2ec7dacb6e9eaf3")]
 [assembly: System.Reflection.AssemblyProductAttribute("MonthlyBudget.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MonthlyBudget.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

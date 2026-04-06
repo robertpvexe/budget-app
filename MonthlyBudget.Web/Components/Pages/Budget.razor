@@ -73,24 +73,72 @@
                     <div class="input-group input-group-sm budget-filter-search">
                         <span class="input-group-text" aria-hidden="true">🔍</span>
                         <input type="text"
-                               class="form-control form-control-sm"
+                               class="form-control border border-secondary rounded"
                                placeholder="Szukaj..."
                                @bind="searchTerm" />
                     </div>
 
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm budget-filter-toggle"
-                            @onclick="ToggleDateFilter">
-                        @DateFilterLabel
-                    </button>
+                    <div class="position-relative d-inline-flex align-items-center justify-content-center">
+                        <button id="okresBtn" type="button"
+                                class="@DateFilterButtonClass"
+                                @onclick="ToggleDateFilterAsync">
+                            @DateFilterLabel
+                        </button>
 
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm budget-filter-toggle"
-                            @onclick="ToggleAmountFilter">
-                        @AmountFilterLabel
-                    </button>
+                        @if (showDateFilter)
+                        {
+                            <div id="okresPanel" class="budget-filter-panel budget-filter-panel-visible filter-panel">
+                                <div class="budget-filter-panel-content d-flex align-items-center gap-2">
+                                    <input type="date"
+                                           class="form-control form-control-sm budget-filter-date"
+                                           onclick="this.showPicker ? this.showPicker() : this.focus()"
+                                           @bind="fromDateFilter"
+                                           @bind:format="yyyy-MM-dd" />
 
-                    <select class="@CategoryFilterSelectClass" @bind="selectedCategoryId">
+                                    <input type="date"
+                                           class="form-control form-control-sm budget-filter-date"
+                                           onclick="this.showPicker ? this.showPicker() : this.focus()"
+                                           @bind="toDateFilter"
+                                           @bind:format="yyyy-MM-dd" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="position-relative d-inline-flex align-items-center justify-content-center">
+                        <button id="kwotaBtn" type="button"
+                                class="@AmountFilterButtonClass"
+                                @onclick="ToggleAmountFilterAsync">
+                            @AmountFilterLabel
+                        </button>
+
+                        @if (showAmountFilter)
+                        {
+                            <div id="kwotaPanel" class="budget-filter-panel budget-filter-panel-visible filter-panel">
+                                <div class="budget-filter-panel-content d-flex gap-2 justify-content-center">
+                                    <input type="number"
+                                           class="form-control border border-secondary rounded budget-filter-amount"
+                                           style="width: 160px; font-size: 0.9rem; text-align: right;"
+                                           placeholder="0.00"
+                                           min="0.01"
+                                           max="999999999"
+                                           step="0.01"
+                                           @bind="minAmountFilter" />
+
+                                    <input type="number"
+                                           class="form-control border border-secondary rounded budget-filter-amount"
+                                           style="width: 160px; font-size: 0.9rem; text-align: right;"
+                                           placeholder="0.00"
+                                           min="0.01"
+                                           max="999999999"
+                                           step="0.01"
+                                           @bind="maxAmountFilter" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <select class="form-select border border-secondary rounded budget-filter-select @CategoryFilterSelectClass" @bind="selectedCategoryId">
                         <option value="">Wszystkie</option>
                         @foreach (var cat in categories)
                         {
@@ -105,45 +153,14 @@
                     </div>
                 </div>
 
-                @if (showDateFilter)
+                @if (showDateFilter || showAmountFilter)
                 {
-                    <div class="card budget-filter-panel mt-2">
-                        <div class="card-body d-flex align-items-center gap-2 flex-wrap p-2">
-                            <input type="date"
-                                   class="form-control form-control-sm budget-filter-date"
-                                   @bind="fromDateFilter"
-                                   @bind:format="yyyy-MM-dd" />
-
-                            <input type="date"
-                                   class="form-control form-control-sm budget-filter-date"
-                                   @bind="toDateFilter"
-                                   @bind:format="yyyy-MM-dd" />
-                        </div>
-                    </div>
+                    <div
+                            class="budget-filter-overlay"
+                            @onclick="CloseFilterPanels"
+                            aria-label="Zamknij panel filtrów"></div>
                 }
 
-                @if (showAmountFilter)
-                {
-                    <div class="card budget-filter-panel mt-2">
-                        <div class="card-body d-flex align-items-center gap-2 flex-wrap p-2">
-                            <input type="number"
-                                   class="form-control form-control-sm budget-filter-amount"
-                                   placeholder="Od"
-                                   min="0.01"
-                                   max="999999999"
-                                   step="0.01"
-                                   @bind="minAmountFilter" />
-
-                            <input type="number"
-                                   class="form-control form-control-sm budget-filter-amount"
-                                   placeholder="Do"
-                                   min="0.01"
-                                   max="999999999"
-                                   step="0.01"
-                                   @bind="maxAmountFilter" />
-                        </div>
-                    </div>
-                }
             </form>
 
             <div class="table-header">
@@ -276,18 +293,33 @@
 
     private string CategoryFilterSelectClass =>
         selectedCategoryId.HasValue
-            ? "form-select form-select-sm budget-filter-category"
-            : "form-select form-select-sm budget-filter-category text-muted";
+            ? "budget-filter-category"
+            : "budget-filter-category text-muted";
 
     private string DateFilterLabel =>
         fromDateFilter.HasValue || toDateFilter.HasValue
-            ? $"Okres: {FormatDateFilterValue(fromDateFilter)} - {FormatDateFilterValue(toDateFilter)}"
+            ? $"{FormatDateFilterValue(fromDateFilter)} - {FormatDateFilterValue(toDateFilter)}"
             : "Okres";
 
     private string AmountFilterLabel =>
         minAmountFilter.HasValue || maxAmountFilter.HasValue
-            ? $"Kwota: {FormatAmountFilterValue(minAmountFilter)} - {FormatAmountFilterValue(maxAmountFilter)}"
+            ? $"{FormatAmountFilterValue(minAmountFilter)} - {FormatAmountFilterValue(maxAmountFilter)} PLN"
             : "Kwota";
+
+    private string DateFilterButtonClass =>
+        showDateFilter
+            ? "btn btn-outline-primary btn-sm budget-filter-toggle budget-filter-toggle-active"
+            : "btn btn-outline-secondary btn-sm budget-filter-toggle";
+
+    private string AmountFilterButtonClass =>
+        showAmountFilter
+            ? "btn btn-outline-primary btn-sm budget-filter-toggle budget-filter-toggle-active"
+            : "btn btn-outline-secondary btn-sm budget-filter-toggle";
+
+    private async Task PositionPanel(string buttonId, string panelId)
+    {
+        await JS.InvokeVoidAsync("positionFilterPanel", buttonId, panelId);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -515,24 +547,34 @@
         await ShowBudget();
     }
 
-    private void ToggleDateFilter()
+    private async Task ToggleDateFilterAsync()
     {
         showDateFilter = !showDateFilter;
 
         if (showDateFilter)
         {
             showAmountFilter = false;
+            await InvokeAsync(StateHasChanged);
+            await PositionPanel("okresBtn", "okresPanel");
         }
     }
 
-    private void ToggleAmountFilter()
+    private async Task ToggleAmountFilterAsync()
     {
         showAmountFilter = !showAmountFilter;
 
         if (showAmountFilter)
         {
             showDateFilter = false;
+            await InvokeAsync(StateHasChanged);
+            await PositionPanel("kwotaBtn", "kwotaPanel");
         }
+    }
+
+    private void CloseFilterPanels()
+    {
+        showDateFilter = false;
+        showAmountFilter = false;
     }
 
     private async Task ShowExpenseAddedMessageAsync()
@@ -575,12 +617,12 @@
 
     private static string FormatDateFilterValue(DateTime? value)
     {
-        return value?.ToString("dd.MM.yyyy") ?? "Od/Do";
+        return value?.ToString("dd.MM") ?? "..";
     }
 
     private static string FormatAmountFilterValue(decimal? value)
     {
-        return value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Od/Do";
+        return value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "..";
     }
 
     private async Task<bool> ValidateExpenseAmount(decimal value)
@@ -743,7 +785,7 @@
     }
 
     .budget-filters-row {
-        overflow-x: auto;
+        overflow: visible;
         padding-bottom: 2px;
     }
 
@@ -753,10 +795,6 @@
         flex: 1 1 280px;
     }
 
-    .budget-filter-group {
-        flex: 0 0 auto;
-    }
-
     .budget-filter-date,
     .budget-filter-amount,
     .budget-filter-category {
@@ -764,13 +802,96 @@
         min-width: 140px;
     }
 
+    .budget-filter-panel-content .budget-filter-date,
+    .budget-filter-panel-content .budget-filter-amount {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 0;
+    }
+
     .budget-filter-toggle {
         min-width: 140px;
+        height: 36px;
+        padding: 4px 12px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         white-space: nowrap;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+
+    .budget-filter-search input,
+    .budget-filter-select {
+        height: 36px;
+        padding: 4px 10px;
+        font-size: 0.9rem;
+    }
+
+    .budget-filter-select {
+        line-height: normal;
+    }
+
+    .budget-filter-toggle-active {
+        box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+    }
+
+    .budget-filter-overlay {
+        position: fixed;
+        inset: 0;
+        background: transparent;
+        border: 0;
+        padding: 0;
+        margin: 0;
+        z-index: 10;
     }
 
     .budget-filter-panel {
-        border-color: var(--bs-border-color);
+        position: absolute;
+        opacity: 0;
+        animation: budgetFilterFadeIn 0.18s ease forwards;
+    }
+
+    .budget-filter-panel-visible {
+        opacity: 1;
+    }
+
+    .budget-filter-panel-content {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .filter-panel {
+        position: absolute;
+        top: 100%;
+        z-index: 1000;
+    }
+
+    .filter-panel .budget-filter-panel-content {
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .budget-filter-date {
+        cursor: pointer;
+    }
+
+    .budget-filter-date:hover {
+        border-color: var(--bs-secondary-color);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
     }
 
     .budget-filter-category.text-muted {
@@ -787,6 +908,12 @@
 
     .budget-filter-button {
         min-width: 90px;
+        height: 36px;
+        padding: 4px 12px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .amount-field-group {
@@ -816,6 +943,18 @@
         padding: 2px 8px;
         font-size: 14px;
         line-height: 1.2;
+    }
+
+    @@keyframes budgetFilterFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 
