@@ -5,7 +5,11 @@
 <h3>Kategorie</h3>
 
 <div class="mb-3">
-    <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" />
+    <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" maxlength="50" />
+    @if (newCategoryName?.Length > 50)
+    {
+        <div class="text-danger small">Maksymalnie 50 znaków</div>
+    }
     <button class="btn btn-primary mt-2" @onclick="AddCategory">Dodaj</button>
 </div>
 
@@ -42,7 +46,7 @@ else
 
     private async Task AddCategory()
     {
-        if (string.IsNullOrWhiteSpace(newCategoryName))
+        if (string.IsNullOrWhiteSpace(newCategoryName) || newCategoryName.Length > 50)
             return;
 
         await Http.PostAsJsonAsync("http://localhost:5226/api/Budget/categories", newCategoryName);

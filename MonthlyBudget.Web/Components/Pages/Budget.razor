@@ -70,10 +70,10 @@
         <section class="budget-card">
             <form class="mb-3">
                 <div class="d-flex align-items-center gap-2 flex-nowrap budget-filters-row">
-                    <div class="input-group input-group-sm budget-filter-search">
-                        <span class="input-group-text" aria-hidden="true">🔍</span>
+                    <div class="position-relative budget-filter-search">
+                        <span class="search-icon" aria-hidden="true">🔍</span>
                         <input type="text"
-                               class="form-control border border-secondary rounded"
+                               class="form-control border border-secondary rounded search-input"
                                placeholder="Szukaj..."
                                @bind="searchTerm" />
                     </div>
@@ -138,13 +138,72 @@
                         }
                     </div>
 
-                    <select class="form-select border border-secondary rounded budget-filter-select @CategoryFilterSelectClass" @bind="selectedCategoryId">
-                        <option value="">Wszystkie</option>
-                        @foreach (var cat in categories)
+                    <div id="categoryDropdown" class="dropdown position-relative budget-filter-category-picker">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm dropdown-toggle budget-filter-toggle @(isDropdownOpen ? "no-hover" : "")"
+                                style="width: 260px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; justify-content: space-between;"
+                                @onclick="ToggleDropdown">
+                            <div class="position-relative w-100">
+                                <span class="text-truncate flex-grow-1 pe-4">
+                                    @if (!selectedCategories.Any())
+                                    {
+                                        <span>Wszystkie</span>
+                                    }
+                                    else if (selectedCategories.Count == 1)
+                                    {
+                                        <span>@selectedCategories.First()</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@($"{selectedCategories.Count} wybrane")</span>
+                                    }
+                                </span>
+
+                                @if (selectedCategories.Any())
+                                {
+                                    <button type="button"
+                                            class="btn budget-filter-clear-button position-absolute top-50 end-0 translate-middle-y me-2"
+                                            style="width: 26px; height: 26px; padding: 0; font-size: 1.2rem; font-weight: bold; line-height: 1; border-radius: 50%;"
+                                            @onclick="ClearCategories"
+                                            @onclick:stopPropagation="true">
+                                        ×
+                                    </button>
+                                }
+                            </div>
+                        </button>
+
+                        @if (isDropdownOpen)
                         {
-                            <option value="@cat.Id">@cat.Name</option>
+                            <ul class="dropdown-menu p-2 show budget-filter-category-menu">
+                                @foreach (var category in categories.Where(cat => cat.Id != 0).Select(cat => cat.Name))
+                                {
+                                    <li class="d-flex justify-content-between align-items-center px-2 py-1 budget-filter-category-item @(selectedCategories.Contains(category) ? "text-muted selected-category" : "")"
+                                        style="@(selectedCategories.Contains(category) ? "font-weight: 500;" : null)">
+                                        <span class="category-name text-truncate" title="@category">@category</span>
+
+                                        @if (selectedCategories.Contains(category))
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger budget-filter-category-action"
+                                                    type="button"
+                                                    @onclick="() => RemoveCategory(category)"
+                                                    @onclick:stopPropagation="true">
+                                                -
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-success budget-filter-category-action"
+                                                    type="button"
+                                                    @onclick="() => AddCategory(category)"
+                                                    @onclick:stopPropagation="true">
+                                                +
+                                            </button>
+                                        }
+                                    </li>
+                                }
+                            </ul>
                         }
-                    </select>
+                    </div>
 
                     <div class="ms-auto">
                         <button type="button" class="btn btn-primary btn-sm budget-filter-button" @onclick="LoadSelectedBudget">
@@ -232,7 +291,9 @@
                                         }
                                         else
                                         {
-                                            @expense.CategoryName
+                                            <span class="category-text" title="@expense.CategoryName">
+                                                @expense.CategoryName
+                                            </span>
                                         }
                                     </td>
                                     <td class="budget-expense-cell">@FormatCurrency(expense.Amount)</td>
@@ -279,8 +340,11 @@
     private decimal? maxAmountFilter;
     private bool showDateFilter;
     private bool showAmountFilter;
+    private bool isDropdownOpen;
+    private DotNetObjectReference<Budget>? dropdownDotNetRef;
+    private bool clickOutsideRegistered;
+    private List<string> selectedCategories = new();
     private List<Category> categories = new();
-    private int? selectedCategoryId;
     private int? editingExpenseId;
     private string editingName = string.Empty;
     private decimal editingAmount;
@@ -289,12 +353,9 @@
     private BudgetDetailsResponse? currentBudget;
 
     private IEnumerable<ExpenseDto> FilteredExpenses =>
-        currentBudget?.Expenses ?? Enumerable.Empty<ExpenseDto>();
-
-    private string CategoryFilterSelectClass =>
-        selectedCategoryId.HasValue
-            ? "budget-filter-category"
-            : "budget-filter-category text-muted";
+        currentBudget?.Expenses
+            .Where(expense => selectedCategories.Count == 0 || selectedCategories.Contains(expense.CategoryName))
+            ?? Enumerable.Empty<ExpenseDto>();
 
     private string DateFilterLabel =>
         fromDateFilter.HasValue || toDateFilter.HasValue
@@ -329,6 +390,16 @@
 
         await LoadCategories();
         await ShowBudget();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !clickOutsideRegistered)
+        {
+            dropdownDotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("registerClickOutside", "categoryDropdown", dropdownDotNetRef);
+            clickOutsideRegistered = true;
+        }
     }
 
     private async Task LoadCategories()
@@ -488,11 +559,6 @@
             queryParams.Add($"search={Uri.EscapeDataString(searchTerm.Trim())}");
         }
 
-        if (selectedCategoryId.HasValue && selectedCategoryId.Value != 0)
-        {
-            queryParams.Add($"categoryId={selectedCategoryId.Value}");
-        }
-
         if (minAmountFilter.HasValue)
         {
             queryParams.Add($"minAmount={minAmountFilter.Value.ToString(CultureInfo.InvariantCulture)}");
@@ -547,6 +613,59 @@
         await ShowBudget();
     }
 
+    private bool IsAnyFilterActive()
+    {
+        return !string.IsNullOrWhiteSpace(searchTerm)
+            || selectedCategories.Any()
+            || fromDateFilter != null
+            || toDateFilter != null
+            || minAmountFilter != null
+            || maxAmountFilter != null;
+    }
+
+    private void ResetFilters()
+    {
+        searchTerm = string.Empty;
+        selectedCategories.Clear();
+        fromDateFilter = null;
+        toDateFilter = null;
+        minAmountFilter = null;
+        maxAmountFilter = null;
+        showDateFilter = false;
+        showAmountFilter = false;
+        isDropdownOpen = false;
+    }
+
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+    }
+
+    private void AddCategory(string category)
+    {
+        if (!selectedCategories.Contains(category))
+        {
+            selectedCategories.Add(category);
+        }
+    }
+
+    private void RemoveCategory(string category)
+    {
+        selectedCategories.Remove(category);
+    }
+
+    private void ClearCategories()
+    {
+        selectedCategories.Clear();
+    }
+
+    [JSInvokable]
+    public void CloseDropdown()
+    {
+        isDropdownOpen = false;
+        StateHasChanged();
+    }
+
     private async Task ToggleDateFilterAsync()
     {
         showDateFilter = !showDateFilter;
@@ -575,6 +694,7 @@
     {
         showDateFilter = false;
         showAmountFilter = false;
+        isDropdownOpen = false;
     }
 
     private async Task ShowExpenseAddedMessageAsync()
@@ -732,6 +852,16 @@
         text-overflow: ellipsis;
     }
 
+    .category-text {
+        display: inline-block;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        cursor: pointer;
+    }
+
     .budget-table td:nth-child(5) {
         overflow: visible;
         white-space: nowrap;
@@ -795,6 +925,63 @@
         flex: 1 1 280px;
     }
 
+    .search-icon {
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        transform: translateY(-50%);
+        pointer-events: none;
+        font-size: 0.9rem;
+        color: #6c757d;
+        z-index: 1;
+    }
+
+    .search-input {
+        padding-left: 40px !important;
+    }
+
+    .budget-filter-category-picker {
+        min-width: 220px;
+    }
+
+    .budget-filter-category-menu {
+        width: 260px;
+    }
+
+    .budget-filter-category-item:hover {
+        background-color: #dee2e6;
+    }
+
+    .selected-category {
+        background-color: #e9ecef;
+    }
+
+    .selected-category:hover {
+        background-color: #e9ecef;
+        cursor: default;
+    }
+
+    .budget-filter-category-action {
+        min-width: 30px;
+    }
+
+    .budget-filter-category-item {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .category-name {
+        max-width: 170px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .budget-filter-clear-button:hover {
+        background-color: #e9ecef;
+    }
+
     .budget-filter-date,
     .budget-filter-amount,
     .budget-filter-category {
@@ -834,6 +1021,18 @@
 
     .budget-filter-toggle-active {
         box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+    }
+
+    .no-hover:hover {
+        background-color: #e9ecef !important;
+        border-color: #ced4da !important;
+        color: #212529 !important;
+        cursor: default;
+    }
+
+    .no-hover:focus,
+    .no-hover:active {
+        box-shadow: none !important;
     }
 
     .budget-filter-overlay {
@@ -914,6 +1113,25 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .budget-filter-add-button {
+        height: 36px;
+        min-width: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .budget-filter-category-badge {
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+    }
+
+    .budget-filter-category-badge .btn-close {
+        float: none;
+        font-size: 0.6rem;
     }
 
     .amount-field-group {

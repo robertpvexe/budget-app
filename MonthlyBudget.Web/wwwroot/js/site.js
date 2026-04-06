@@ -12,3 +12,14 @@ window.positionFilterPanel = (buttonId, panelId) => {
     panel.style.top = (btn.offsetTop + btn.offsetHeight + 6) + "px";
     panel.style.left = (btnCenter - panelWidth / 2) + "px";
 };
+
+window.registerClickOutside = (dropdownId, dotNetRef) => {
+    document.addEventListener('click', function (event) {
+        const dropdown = document.getElementById(dropdownId);
+        if (!dropdown) return;
+
+        if (!dropdown.contains(event.target)) {
+            dotNetRef.invokeMethodAsync('CloseDropdown');
+        }
+    });
+};

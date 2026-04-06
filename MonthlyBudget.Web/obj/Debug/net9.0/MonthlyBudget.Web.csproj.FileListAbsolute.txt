@@ -168,4 +168,4 @@ C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\ref\MonthlyBudget.W
 C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\scopedcss\Components\Pages\Home.razor.rz.scp.css
 C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\epeoks840a-{0}-g97m5l8883-g97m5l8883.gz
 C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\2ky3jum1yn-{0}-g97m5l8883-g97m5l8883.gz
-C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\5wt2crtvj6-{0}-3mp7fy1vma-3mp7fy1vma.gz
+C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\5wt2crtvj6-{0}-ynz0grqo0u-ynz0grqo0u.gz
