@@ -33,3 +33,7 @@ packages/
 appsettings.*.json
 !appsettings.json
 .fake
+
+*.db
+*.db-shm
+*.db-wal
