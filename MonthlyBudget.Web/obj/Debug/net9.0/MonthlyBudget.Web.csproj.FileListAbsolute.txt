@@ -248,8 +248,6 @@ c:\Users\magda\budget-app\artifacts\budget-toast-check\MonthlyBudget.Web.deps.js
 c:\Users\magda\budget-app\artifacts\budget-toast-check\MonthlyBudget.Web.runtimeconfig.json
 c:\Users\magda\budget-app\artifacts\budget-toast-check\MonthlyBudget.Web.dll
 c:\Users\magda\budget-app\artifacts\budget-toast-check\MonthlyBudget.Web.pdb
-C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\epeoks840a-{0}-dvkm7803wf-dvkm7803wf.gz
-C:\Users\magda\budget-app\MonthlyBudget.Web\obj\Debug\net9.0\compressed\2ky3jum1yn-{0}-dvkm7803wf-dvkm7803wf.gz
 c:\Users\magda\budget-app\artifacts\budget-localstorage-check\appsettings.Development.json
 c:\Users\magda\budget-app\artifacts\budget-localstorage-check\appsettings.json
 c:\Users\magda\budget-app\artifacts\budget-localstorage-check\MonthlyBudget.Web.staticwebassets.runtime.json
@@ -394,3 +392,6 @@ c:\Users\magda\budget-app\artifacts\budget-debug-cleanup-check\MonthlyBudget.Web
 c:\Users\magda\budget-app\artifacts\budget-debug-cleanup-check\MonthlyBudget.Web.runtimeconfig.json
 c:\Users\magda\budget-app\artifacts\budget-debug-cleanup-check\MonthlyBudget.Web.dll
 c:\Users\magda\budget-app\artifacts\budget-debug-cleanup-check\MonthlyBudget.Web.pdb
+C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\scopedcss\Components\Pages\Categories.razor.rz.scp.css
+C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\epeoks840a-{0}-860bww1ra3-860bww1ra3.gz
+C:\Users\magda\budget-app\monthlybudget.web\obj\Debug\net9.0\compressed\2ky3jum1yn-{0}-860bww1ra3-860bww1ra3.gz

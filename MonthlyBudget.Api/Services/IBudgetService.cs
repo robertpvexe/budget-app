@@ -8,6 +8,8 @@ public interface IBudgetService
     Expense AddExpense(int monthlyBudgetId, Expense expense);
     List<Category> GetCategories();
     Category? AddCategory(string name);
+    Category? UpdateCategory(int id, string name);
+    int GetCategoryUsageCount(int id);
     bool DeleteCategory(int id);
     bool UpdateExpense(int budgetId, int expenseId, UpdateExpenseRequest request);
     bool RemoveExpense(int monthlyBudgetId, int expenseId);

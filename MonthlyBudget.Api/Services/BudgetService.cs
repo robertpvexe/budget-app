@@ -5,6 +5,8 @@ namespace MonthlyBudget.Api;
 
 public class BudgetService : IBudgetService
 {
+    private const int NoCategoryId = 0;
+    private const string NoCategoryName = "Brak kategorii";
     private readonly BudgetDbContext _db;
     private List<BudgetModel> _budgets;
     private readonly Lock _lock = new();
@@ -19,12 +21,14 @@ public class BudgetService : IBudgetService
     public BudgetService(BudgetDbContext db)
     {
         _db = db;
+        Dictionary<int, string>? storedCategoryNames = null;
 
         if (File.Exists(_dataFilePath))
         {
             try
             {
                 var json = File.ReadAllText(_dataFilePath);
+                storedCategoryNames = LoadStoredCategoryNames(json);
                 _budgets = JsonSerializer.Deserialize<List<BudgetModel>>(json, _jsonOptions) ?? new List<BudgetModel>();
             }
             catch
@@ -37,22 +41,7 @@ public class BudgetService : IBudgetService
             _budgets = new List<BudgetModel>();
         }
 
-        foreach (var budget in _budgets)
-        {
-            budget.Expenses ??= [];
-
-            foreach (var expense in budget.Expenses)
-            {
-                if (expense.CreatedAt == default)
-                {
-                    expense.CreatedAt = DateTime.Now;
-                }
-
-                expense.MonthlyBudgetId = budget.Id;
-                expense.MonthlyBudget = budget;
-                expense.Category = _db.Categories.FirstOrDefault(c => c.Id == expense.CategoryId);
-            }
-        }
+        var requiresDataRewrite = NormalizeBudgetExpenses(storedCategoryNames);
 
         _nextBudgetId = _budgets.Count == 0
             ? 1
@@ -62,6 +51,11 @@ public class BudgetService : IBudgetService
             .SelectMany(budget => budget.Expenses)
             .DefaultIfEmpty()
             .Max(expense => expense?.Id ?? 0) + 1;
+
+        if (requiresDataRewrite)
+        {
+            SaveData();
+        }
     }
 
     public BudgetModel CreateMonthlyBudget(BudgetModel monthlyBudget)
@@ -105,8 +99,7 @@ public class BudgetService : IBudgetService
                 throw new InvalidOperationException($"Monthly budget with id '{monthlyBudgetId}' does not exist.");
             }
 
-            var category = _db.Categories.FirstOrDefault(c => c.Id == expense.CategoryId)
-                ?? _db.Categories.FirstOrDefault(c => c.Id == 0);
+            var category = ResolveUserCategoryOrNone(expense.CategoryId);
 
             var newExpense = new Expense
             {
@@ -114,7 +107,7 @@ public class BudgetService : IBudgetService
                 Name = expense.Name,
                 Amount = expense.Amount,
                 CreatedAt = DateTime.Now,
-                CategoryId = category?.Id ?? 0,
+                CategoryId = category?.Id ?? NoCategoryId,
                 Category = category,
                 MonthlyBudgetId = budget.Id,
                 MonthlyBudget = budget
@@ -142,7 +135,7 @@ public class BudgetService : IBudgetService
 
         normalized = char.ToUpper(normalized[0]) + normalized.Substring(1);
 
-        if (normalized == "Brak kategorii")
+        if (normalized == NoCategoryName)
         {
             return null;
         }
@@ -152,28 +145,85 @@ public class BudgetService : IBudgetService
             return null;
         }
 
-        var newCategory = new Category
-        {
-            Id = _db.Categories.Any() ? _db.Categories.Max(c => c.Id) + 1 : 1,
-            Name = normalized
-        };
+        var newCategory = new Category { Name = normalized };
 
         _db.Categories.Add(newCategory);
         _db.SaveChanges();
         return newCategory;
     }
 
+    public Category? UpdateCategory(int id, string name)
+    {
+        lock (_lock)
+        {
+            var category = _db.Categories.FirstOrDefault(c => c.Id == id);
+            if (category == null || category.Id == NoCategoryId)
+            {
+                return null;
+            }
+
+            var normalized = name.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return null;
+            }
+
+            normalized = char.ToUpper(normalized[0]) + normalized.Substring(1);
+
+            if (normalized == NoCategoryName)
+            {
+                return null;
+            }
+
+            if (_db.Categories.Any(c => c.Id != id && c.Name.ToLower() == normalized.ToLower()))
+            {
+                return null;
+            }
+
+            category.Name = normalized;
+            _db.SaveChanges();
+
+            foreach (var expense in _budgets.SelectMany(budget => budget.Expenses).Where(expense => expense.CategoryId == id))
+            {
+                expense.Category = category;
+            }
+
+            SaveData();
+            return category;
+        }
+    }
+
+    public int GetCategoryUsageCount(int id)
+    {
+        lock (_lock)
+        {
+            return _budgets
+                .SelectMany(budget => budget.Expenses)
+                .Count(expense => expense.CategoryId == id);
+        }
+    }
+
     public bool DeleteCategory(int id)
     {
-        if (id == 0)
-            return false;
+        lock (_lock)
+        {
+            if (id == NoCategoryId)
+                return false;
 
-        var category = _db.Categories.FirstOrDefault(c => c.Id == id);
-        if (category == null) return false;
+            var category = _db.Categories.FirstOrDefault(c => c.Id == id);
+            if (category == null) return false;
 
-        _db.Categories.Remove(category);
-        _db.SaveChanges();
-        return true;
+            foreach (var expense in _budgets.SelectMany(budget => budget.Expenses).Where(expense => expense.CategoryId == id))
+            {
+                expense.CategoryId = NoCategoryId;
+                expense.Category = null;
+            }
+
+            _db.Categories.Remove(category);
+            _db.SaveChanges();
+            SaveData();
+            return true;
+        }
     }
 
     public bool RemoveExpense(int monthlyBudgetId, int expenseId)
@@ -230,13 +280,12 @@ public class BudgetService : IBudgetService
             var expense = budget.Expenses.FirstOrDefault(e => e.Id == expenseId);
             if (expense == null) return false;
 
-            var category = _db.Categories.FirstOrDefault(c => c.Id == request.CategoryId)
-                ?? _db.Categories.FirstOrDefault(c => c.Id == 0);
+            var category = ResolveUserCategoryOrNone(request.CategoryId);
 
             expense.Name = request.Name;
             expense.Amount = request.Amount;
             expense.CreatedAt = request.CreatedAt;
-            expense.CategoryId = category?.Id ?? 0;
+            expense.CategoryId = category?.Id ?? NoCategoryId;
             expense.Category = category;
 
             SaveData();
@@ -283,8 +332,8 @@ public class BudgetService : IBudgetService
                     Name = e.Name,
                     Amount = e.Amount,
                     CreatedAt = e.CreatedAt,
-                    CategoryId = e.CategoryId,
-                    Category = e.Category ?? _db.Categories.FirstOrDefault(c => c.Id == e.CategoryId),
+                    CategoryId = NormalizeCategoryId(e.CategoryId),
+                    Category = ResolveCategoryReference(e.CategoryId, null),
                     MonthlyBudgetId = e.MonthlyBudgetId
                 })
                 .ToList()
@@ -376,8 +425,8 @@ public class BudgetService : IBudgetService
                     Name = expense.Name,
                     Amount = expense.Amount,
                     CreatedAt = expense.CreatedAt,
-                    CategoryId = expense.CategoryId,
-                    Category = expense.Category ?? _db.Categories.FirstOrDefault(c => c.Id == expense.CategoryId),
+                    CategoryId = NormalizeCategoryId(expense.CategoryId),
+                    Category = ResolveCategoryReference(expense.CategoryId, null),
                     MonthlyBudgetId = expense.MonthlyBudgetId
                 })
                 .ToList()
@@ -439,6 +488,117 @@ public class BudgetService : IBudgetService
         }
 
         return filteredExpenses;
+    }
+
+    private bool NormalizeBudgetExpenses(Dictionary<int, string>? storedCategoryNames)
+    {
+        var requiresDataRewrite = false;
+
+        foreach (var budget in _budgets)
+        {
+            budget.Expenses ??= [];
+
+            foreach (var expense in budget.Expenses)
+            {
+                if (expense.CreatedAt == default)
+                {
+                    expense.CreatedAt = DateTime.Now;
+                    requiresDataRewrite = true;
+                }
+
+                expense.MonthlyBudgetId = budget.Id;
+                expense.MonthlyBudget = budget;
+
+                var storedCategoryName = storedCategoryNames is not null && storedCategoryNames.TryGetValue(expense.Id, out var name)
+                    ? name
+                    : null;
+
+                var resolvedCategory = ResolveCategoryReference(expense.CategoryId, storedCategoryName);
+                var normalizedCategoryId = resolvedCategory?.Id ?? NoCategoryId;
+
+                if (expense.CategoryId != normalizedCategoryId)
+                {
+                    expense.CategoryId = normalizedCategoryId;
+                    requiresDataRewrite = true;
+                }
+
+                expense.Category = resolvedCategory;
+            }
+        }
+
+        return requiresDataRewrite;
+    }
+
+    private Category? ResolveUserCategoryOrNone(int? categoryId)
+    {
+        return ResolveCategoryReference(categoryId, null);
+    }
+
+    private Category? ResolveCategoryReference(int? categoryId, string? storedCategoryName)
+    {
+        if (!categoryId.HasValue || categoryId.Value == NoCategoryId)
+        {
+            return null;
+        }
+
+        var category = _db.Categories.FirstOrDefault(c => c.Id == categoryId.Value);
+        if (category is null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(storedCategoryName)
+            && !string.Equals(storedCategoryName, category.Name, StringComparison.CurrentCultureIgnoreCase))
+        {
+            return null;
+        }
+
+        return category;
+    }
+
+    private static int NormalizeCategoryId(int? categoryId)
+    {
+        return !categoryId.HasValue || categoryId.Value == NoCategoryId
+            ? NoCategoryId
+            : categoryId.Value;
+    }
+
+    private static Dictionary<int, string> LoadStoredCategoryNames(string json)
+    {
+        var result = new Dictionary<int, string>();
+
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return result;
+        }
+
+        foreach (var budgetElement in document.RootElement.EnumerateArray())
+        {
+            if (!budgetElement.TryGetProperty("Expenses", out var expensesElement)
+                || expensesElement.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var expenseElement in expensesElement.EnumerateArray())
+            {
+                if (!expenseElement.TryGetProperty("Id", out var idElement)
+                    || idElement.ValueKind != JsonValueKind.Number
+                    || !idElement.TryGetInt32(out var expenseId))
+                {
+                    continue;
+                }
+
+                if (expenseElement.TryGetProperty("CategoryName", out var categoryNameElement)
+                    && categoryNameElement.ValueKind == JsonValueKind.String)
+                {
+                    result[expenseId] = categoryNameElement.GetString() ?? string.Empty;
+                }
+            }
+        }
+
+        return result;
     }
 
     private void SaveData()

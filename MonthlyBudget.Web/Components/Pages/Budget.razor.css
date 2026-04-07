@@ -1,42 +1,54 @@
 .budget-page {
-    display: grid;
-    gap: 1.5rem;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    --budget-col-name-width: 33%;
+    --budget-col-date-width: 14%;
+    --budget-col-category-width: 22%;
+    --budget-col-amount-width: 13%;
+    --budget-col-actions-width: 18%;
 }
 
 .budget-card {
     background: #ffffff;
     border: 1px solid #d9e2ec;
     border-radius: 18px;
-    padding: 1.5rem;
+    padding: 1.35rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
 }
 
 .budget-card-main {
-    padding-top: 1.35rem;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding-top: 1.15rem;
     box-shadow: 0 22px 48px rgba(15, 23, 42, 0.08);
 }
 
 .budget-card-form {
-    max-width: 920px;
-    padding-top: 1.35rem;
-}
-
-.budget-card h2 {
+    width: 100%;
+    max-width: none;
+    margin-top: auto;
     margin-bottom: 0;
-    font-size: 1.15rem;
+    padding-top: 1.15rem;
+    padding-bottom: 1.15rem;
 }
 
-.budget-section-heading {
+.budget-card-main-content {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-bottom: 1rem;
+    min-height: 0;
 }
 
-.budget-section-subtitle {
-    margin: 0;
-    color: #62748a;
-    font-size: 0.95rem;
+.budget-table-section {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .budget-grid {
@@ -103,11 +115,7 @@
     justify-content: space-between;
     gap: 1rem;
     align-items: center;
-    margin-bottom: 1rem;
-}
-
-.table-header .budget-section-heading {
-    margin-bottom: 0;
+    margin-bottom: 0.75rem;
 }
 
 .budget-period-chip,
@@ -165,7 +173,7 @@
     justify-content: flex-end;
     align-items: center;
     gap: 0.75rem;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
 }
 
 .budget-pagination-pages {
@@ -207,4 +215,109 @@
     text-align: center;
     color: #66758a;
     padding: 1rem;
+}
+
+.budget-expense-form {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.budget-expense-form-row {
+    display: grid;
+    gap: 0.85rem;
+    align-items: end;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    grid-template-columns:
+        minmax(0, calc((100% - (4 * 0.85rem)) * 0.33))
+        minmax(0, calc((100% - (4 * 0.85rem)) * 0.14))
+        minmax(0, calc((100% - (4 * 0.85rem)) * 0.22))
+        minmax(0, calc((100% - (4 * 0.85rem)) * 0.13))
+        minmax(0, calc((100% - (4 * 0.85rem)) * 0.18));
+}
+
+.budget-expense-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.budget-expense-field .form-label {
+    margin-bottom: 0;
+}
+
+.budget-expense-field-name {
+    grid-column: 1;
+}
+
+.budget-expense-field-date {
+    grid-column: 2;
+}
+
+.budget-expense-field-category {
+    grid-column: 3;
+}
+
+.budget-expense-field-amount {
+    grid-column: 4;
+}
+
+.budget-expense-field .form-control,
+.budget-expense-field select,
+.budget-expense-submit,
+.budget-expense-amount-group .input-group-text {
+    height: 38px;
+}
+
+.budget-expense-amount-group {
+    width: 100%;
+    max-width: 100%;
+}
+
+.budget-expense-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    width: auto;
+    min-width: 6rem;
+    max-width: 100%;
+    flex: 0 0 auto;
+    padding-inline: 1rem;
+}
+
+.budget-expense-action {
+    display: flex;
+    align-items: flex-end;
+    grid-column: 5;
+    justify-content: flex-end;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding-right: 0.2rem;
+}
+
+@media (max-width: 1200px) {
+    .budget-expense-form-row {
+        grid-template-columns: minmax(220px, 1.1fr) minmax(135px, 0.5fr) minmax(170px, 0.75fr) minmax(160px, 0.72fr) minmax(120px, 0.62fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .budget-expense-form-row {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+
+    .budget-expense-field-name,
+    .budget-expense-field-date,
+    .budget-expense-field-category,
+    .budget-expense-field-amount,
+    .budget-expense-action {
+        grid-column: auto;
+    }
 }

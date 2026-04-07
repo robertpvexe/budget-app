@@ -1,38 +1,100 @@
 @page "/categories"
 @rendermode InteractiveServer
 @inject HttpClient Http
+@inject IJSRuntime JS
 
-<h3>Kategorie</h3>
+<PageTitle>Kategorie</PageTitle>
 
-<div class="mb-3">
-    <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" maxlength="50" />
-    @if (newCategoryName?.Length > 50)
-    {
-        <div class="text-danger small">Maksymalnie 50 znaków</div>
-    }
-    <button class="btn btn-primary mt-2" @onclick="AddCategory">Dodaj</button>
-</div>
-
-@if (categories == null)
-{
-    <p>Ładowanie...</p>
-}
-else
-{
-    <ul class="list-group">
-        @foreach (var category in categories.Where(c => c.Id != 0))
+<div class="categories-page">
+    <section class="categories-card categories-card-main">
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
-            <li class="list-group-item d-flex justify-content-between">
-                @category.Name
-                <button class="btn btn-danger btn-sm" @onclick="() => DeleteCategory(category.Id)">Usuń</button>
-            </li>
+            <div class="categories-status @(isStatusError ? "categories-status-error" : "categories-status-success")">
+                @statusMessage
+            </div>
         }
-    </ul>
-}
+
+        <div class="categories-list-header">
+            <span>Nazwa kategorii</span>
+            <span class="categories-actions-header">Akcje</span>
+        </div>
+
+        @if (categories == null)
+        {
+            <p class="categories-loading">Ładowanie...</p>
+        }
+        else
+        {
+            <ul class="categories-list">
+                @foreach (var category in categories)
+                {
+                    var isEditing = editingCategoryId == category.Id;
+                    var isProtected = IsProtectedCategory(category);
+
+                    <li class="categories-list-item">
+                        @if (isEditing)
+                        {
+                            <div class="categories-edit-field">
+                                <input class="form-control form-control-sm categories-edit-input"
+                                       @bind="editingCategoryName"
+                                       @bind:event="oninput"
+                                       maxlength="50" />
+                                @if (editingCategoryName?.Length > 50)
+                                {
+                                    <div class="text-danger small">Maksymalnie 50 znaków</div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="categories-name">@category.Name</span>
+                        }
+
+                        <div class="categories-actions">
+                            @if (!isProtected)
+                            {
+                                @if (isEditing)
+                                {
+                                    <button type="button" class="btn btn-success btn-sm" @onclick="SaveCategoryEdit">Zapisz</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="CancelEdit">Anuluj</button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => StartEdit(category)">Edytuj</button>
+                                    <button type="button" class="btn btn-danger btn-sm" @onclick="() => DeleteCategory(category)">Usuń</button>
+                                }
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="categories-card categories-card-form">
+        <div class="categories-form-row">
+            <div class="categories-form-field">
+                <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" maxlength="50" />
+                @if (newCategoryName?.Length > 50)
+                {
+                    <div class="text-danger small">Maksymalnie 50 znaków</div>
+                }
+            </div>
+
+            <div class="categories-form-action">
+                <button type="button" class="btn btn-primary categories-submit" @onclick="AddCategory">Dodaj</button>
+            </div>
+        </div>
+    </section>
+</div>
 
 @code {
     private List<Category>? categories;
     private string newCategoryName = string.Empty;
+    private int? editingCategoryId;
+    private string editingCategoryName = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isStatusError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -41,28 +103,141 @@ else
 
     private async Task LoadCategories()
     {
-        categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories");
+        categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories") ?? new();
     }
 
     private async Task AddCategory()
     {
-        if (string.IsNullOrWhiteSpace(newCategoryName) || newCategoryName.Length > 50)
+        ClearStatus();
+
+        var trimmedName = newCategoryName.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName) || trimmedName.Length > 50)
             return;
 
-        await Http.PostAsJsonAsync("http://localhost:5226/api/Budget/categories", newCategoryName);
-        newCategoryName = "";
+        var response = await Http.PostAsJsonAsync("http://localhost:5226/api/Budget/categories", trimmedName);
+        if (!response.IsSuccessStatusCode)
+        {
+            await ShowErrorAsync("Nie udało się dodać kategorii.");
+            return;
+        }
+
+        newCategoryName = string.Empty;
         await LoadCategories();
     }
 
-    private async Task DeleteCategory(int id)
+    private void StartEdit(Category category)
     {
-        await Http.DeleteAsync($"api/budget/categories/{id}");
+        ClearStatus();
+        editingCategoryId = category.Id;
+        editingCategoryName = category.Name;
+    }
+
+    private void CancelEdit()
+    {
+        editingCategoryId = null;
+        editingCategoryName = string.Empty;
+        ClearStatus();
+    }
+
+    private async Task SaveCategoryEdit()
+    {
+        ClearStatus();
+
+        if (editingCategoryId is null)
+        {
+            await ShowErrorAsync("Nie wybrano kategorii do zapisania.");
+            return;
+        }
+
+        var trimmedName = editingCategoryName.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName) || trimmedName.Length > 50)
+        {
+            await ShowErrorAsync("Nazwa kategorii nie może być pusta.");
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync($"http://localhost:5226/api/Budget/categories/{editingCategoryId.Value}", trimmedName);
+        if (!response.IsSuccessStatusCode)
+        {
+            await ShowErrorAsync("Nie udało się zapisać kategorii.");
+            return;
+        }
+
         await LoadCategories();
+        editingCategoryId = null;
+        editingCategoryName = string.Empty;
+    }
+
+    private async Task DeleteCategory(Category category)
+    {
+        if (IsProtectedCategory(category))
+        {
+            return;
+        }
+
+        var confirmMessage = "Czy na pewno chcesz usunąć tę kategorię?";
+
+        try
+        {
+            var usage = await Http.GetFromJsonAsync<CategoryUsageResponse>($"http://localhost:5226/api/categories/{category.Id}/usage");
+            var usageCount = usage?.Count ?? 0;
+
+            if (usageCount > 0)
+            {
+                confirmMessage = $"Ta kategoria jest używana przez {usageCount} wydatków. Po usunięciu zostaną oznaczone jako 'Brak kategorii'. Czy chcesz kontynuować?";
+            }
+        }
+        catch
+        {
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm", confirmMessage);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/budget/categories/{category.Id}");
+        if (!response.IsSuccessStatusCode)
+        {
+            await ShowErrorAsync("Nie udało się usunąć kategorii.");
+            return;
+        }
+
+        if (editingCategoryId == category.Id)
+        {
+            CancelEdit();
+        }
+
+        await LoadCategories();
+    }
+
+    private async Task ShowErrorAsync(string message)
+    {
+        statusMessage = message;
+        isStatusError = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearStatus()
+    {
+        statusMessage = string.Empty;
+        isStatusError = false;
+    }
+
+    private static bool IsProtectedCategory(Category category)
+    {
+        return string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
     }
 
     public class Category
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class CategoryUsageResponse
+    {
+        public int Count { get; set; }
     }
 }

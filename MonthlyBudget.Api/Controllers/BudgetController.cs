@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using System.Text.Json;
 using BudgetModel = MonthlyBudget.Api.MonthlyBudget;
 
 namespace MonthlyBudget.Api;
@@ -72,6 +73,12 @@ public class BudgetController : ControllerBase
         return Ok(_budgetService.GetCategories());
     }
 
+    [HttpGet("/api/categories/{id:int}/usage")]
+    public IActionResult GetCategoryUsage(int id)
+    {
+        return Ok(new { count = _budgetService.GetCategoryUsageCount(id) });
+    }
+
     [HttpPost("categories")]
     public IActionResult AddCategory([FromBody] string name)
     {
@@ -80,6 +87,32 @@ public class BudgetController : ControllerBase
             return BadRequest("Category already exists or name is invalid.");
 
         return Ok(category);
+    }
+
+    [HttpPut("categories/{id:int}")]
+    [HttpPut("/api/categories/{id:int}")]
+    public IActionResult UpdateCategory(int id, [FromBody] JsonElement requestBody)
+    {
+        if (!_budgetService.GetCategories().Any(category => category.Id == id))
+            return NotFound();
+
+        var name = requestBody.ValueKind switch
+        {
+            JsonValueKind.String => requestBody.GetString() ?? string.Empty,
+            JsonValueKind.Object when requestBody.TryGetProperty("name", out var nameProperty) => nameProperty.GetString() ?? string.Empty,
+            JsonValueKind.Object when requestBody.TryGetProperty("Name", out var legacyNameProperty) => legacyNameProperty.GetString() ?? string.Empty,
+            _ => string.Empty
+        };
+
+        name = name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest("Category name is required.");
+
+        var category = _budgetService.UpdateCategory(id, name);
+        if (category is null)
+            return BadRequest("Category is protected or name is invalid.");
+
+        return Ok();
     }
 
     [HttpDelete("categories/{id}")]

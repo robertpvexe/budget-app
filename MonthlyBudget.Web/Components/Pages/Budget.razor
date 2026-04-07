@@ -1,4 +1,4 @@
-﻿@page "/budget"
+@page "/wydatki"
 @rendermode InteractiveServer
 @implements IDisposable
 @inject HttpClient Http
@@ -8,7 +8,7 @@
 @using System.Text.Json.Serialization
 @using System.Threading
 
-<PageTitle>Bud&#380;et</PageTitle>
+<PageTitle>Lista wydatk&#243;w</PageTitle>
 
 <div class="budget-page">
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -144,7 +144,7 @@
                         {
                             <div class="budget-filter-panel budget-filter-panel-visible filter-panel budget-filter-category-panel">
                                 <ul class="budget-filter-category-menu">
-                                    @foreach (var category in categories.Where(cat => cat.Id != 0))
+                                    @foreach (var category in categories.Where(cat => !IsSystemCategory(cat)))
                                     {
                                         <li>
                                             <button type="button"
@@ -183,169 +183,196 @@
 
             </form>
 
-            <div class="table-header">
-                <h2>Lista wydatk&#243;w</h2>
-                <span>Bud&#380;et: @currentBudget.Month</span>
-            </div>
+            <div class="budget-card-main-content">
+                <div class="table-header">
+                    <span>Lista wydatk&#243;w: @currentBudget.Month</span>
+                </div>
 
-            <table class="table budget-table">
-                <thead>
-                    <tr>
-                        <th>
-                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Name)" @onclick="() => SetSortAsync(BudgetSortColumn.Name)">
-                                <span>Nazwa</span>
-                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Name)</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Date)" @onclick="() => SetSortAsync(BudgetSortColumn.Date)">
-                                <span>Data</span>
-                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Date)</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Category)" @onclick="() => SetSortAsync(BudgetSortColumn.Category)">
-                                <span>Kategoria</span>
-                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Category)</span>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Amount)" @onclick="() => SetSortAsync(BudgetSortColumn.Amount)">
-                                <span>Kwota</span>
-                                <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Amount)</span>
-                            </button>
-                        </th>
-                        <th>Akcje</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (!SortedFilteredExpenses.Any())
-                    {
-                        <tr>
-                            <td colspan="5" class="empty-row">Brak wydatk&#243;w.</td>
-                        </tr>
-                    }
-                    else
-                    {
-                        @foreach (var expense in PagedExpenses)
-                        {
-                            <tr class="budget-expense-row">
-                                @if (editingExpenseId == expense.Id)
+                <div class="budget-table-section">
+                    <table class="table budget-table">
+                        <colgroup>
+                            <col class="budget-col-name" />
+                            <col class="budget-col-date" />
+                            <col class="budget-col-category" />
+                            <col class="budget-col-amount" />
+                            <col class="budget-col-actions" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>
+                                    <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Name)" @onclick="() => SetSortAsync(BudgetSortColumn.Name)">
+                                        <span>Nazwa</span>
+                                        <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Name)</span>
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Date)" @onclick="() => SetSortAsync(BudgetSortColumn.Date)">
+                                        <span>Data</span>
+                                        <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Date)</span>
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Category)" @onclick="() => SetSortAsync(BudgetSortColumn.Category)">
+                                        <span>Kategoria</span>
+                                        <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Category)</span>
+                                    </button>
+                                </th>
+                                <th>
+                                    <button type="button" class="@GetSortButtonClass(BudgetSortColumn.Amount)" @onclick="() => SetSortAsync(BudgetSortColumn.Amount)">
+                                        <span>Kwota</span>
+                                        <span class="budget-sort-indicator">@GetSortIndicator(BudgetSortColumn.Amount)</span>
+                                    </button>
+                                </th>
+                                <th class="budget-table-actions-header">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!SortedFilteredExpenses.Any())
+                            {
+                                <tr>
+                                    <td colspan="5" class="empty-row">Brak wydatk&#243;w.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var expense in PagedExpenses)
                                 {
-                                    <td class="budget-expense-cell">
-                                        <input class="form-control form-control-sm expense-edit-control" type="text" @bind="editingName" />
-                                    </td>
-                                    <td class="budget-expense-cell">
-                                        <input class="form-control form-control-sm expense-edit-control"
-                                               type="date"
-                                               @bind="editingCreatedAt"
-                                               @bind:format="yyyy-MM-dd" />
-                                    </td>
-                                    <td class="budget-expense-cell">
-                                        <select @bind="editingCategoryId" class="form-control form-control-sm expense-edit-control">
-                                            @foreach (var cat in categories.Where(c => c.Id != 0))
-                                            {
-                                                <option value="@cat.Id">@cat.Name</option>
-                                            }
-                                        </select>
-                                    </td>
-                                    <td class="budget-expense-cell">
-                                        <div class="input-group expense-edit-group">
-                                            <input class="form-control form-control-sm expense-edit-control text-end"
-                                                   type="number"
-                                                   min="0.01"
-                                                   max="999999999"
-                                                   step="0.01"
-                                                   @bind="editingAmount" />
-                                            <span class="input-group-text expense-edit-suffix">PLN</span>
-                                        </div>
-                                    </td>
-                                }
-                                else
-                                {
-                                    <td class="budget-expense-cell">@expense.Name</td>
-                                    <td class="budget-expense-cell">@expense.CreatedAt.ToString("dd.MM.yyyy")</td>
-                                    <td class="budget-expense-cell">
-                                        @if (expense.CategoryId == 0)
+                                    <tr class="budget-expense-row">
+                                        @if (editingExpenseId == expense.Id)
                                         {
-                                            <span class="badge bg-secondary">Brak kategorii</span>
+                                            <td class="budget-expense-cell">
+                                                <input class="form-control form-control-sm expense-edit-control" type="text" @bind="editingName" />
+                                            </td>
+                                            <td class="budget-expense-cell">
+                                                <input class="form-control form-control-sm expense-edit-control"
+                                                       type="date"
+                                                       @bind="editingCreatedAt"
+                                                       @bind:format="yyyy-MM-dd" />
+                                            </td>
+                                            <td class="budget-expense-cell">
+                                                <select @bind="editingCategoryId" class="form-control form-control-sm expense-edit-control">
+                                                    @foreach (var cat in AvailableCategories)
+                                                    {
+                                                        <option value="@cat.Id">@cat.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td class="budget-expense-cell">
+                                                <div class="input-group expense-edit-group">
+                                                    <input class="form-control form-control-sm expense-edit-control text-end"
+                                                           type="number"
+                                                           min="0.01"
+                                                           max="999999999"
+                                                           step="0.01"
+                                                           @bind="editingAmount" />
+                                                    <span class="input-group-text expense-edit-suffix">PLN</span>
+                                                </div>
+                                            </td>
                                         }
                                         else
                                         {
-                                            <span class="category-text" title="@expense.CategoryName">
-                                                @expense.CategoryName
-                                            </span>
+                                            <td class="budget-expense-cell">@expense.Name</td>
+                                            <td class="budget-expense-cell">@expense.CreatedAt.ToString("dd.MM.yyyy")</td>
+                                            <td class="budget-expense-cell">
+                                                @if (IsNoCategoryExpense(expense))
+                                                {
+                                                    <span class="badge budget-missing-category-badge"
+                                                          title="Ostrzeżenie:&#10;Wydatki bez kategorii nie są uwzględniane w wykresach i zestawieniach.">
+                                                        Brak kategorii !
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="category-text" title="@expense.CategoryName">
+                                                        @expense.CategoryName
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td class="budget-expense-cell">@FormatCurrency(expense.Amount)</td>
                                         }
-                                    </td>
-                                    <td class="budget-expense-cell">@FormatCurrency(expense.Amount)</td>
+                                        <td class="budget-expense-cell budget-expense-cell-actions">
+                                            @if (editingExpenseId == expense.Id)
+                                            {
+                                                <button class="btn btn-success btn-sm" type="button" @onclick="() => SaveEdit(expense.Id)">Zapisz</button>
+                                                <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">Anuluj</button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">Edytuj</button>
+                                                <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usu&#324;</button>
+                                            }
+                                        </td>
+                                    </tr>
                                 }
-                                <td class="budget-expense-cell">
-                                    @if (editingExpenseId == expense.Id)
-                                    {
-                                        <button class="btn btn-success btn-sm" type="button" @onclick="() => SaveEdit(expense.Id)">Zapisz</button>
-                                        <button class="btn btn-secondary btn-sm" type="button" @onclick="CancelEdit">Anuluj</button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => StartEdit(expense)">Edytuj</button>
-                                        <button class="btn btn-danger btn-sm" type="button" @onclick="() => DeleteExpense(expense.Id)">Usu&#324;</button>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-
-            @if (ShouldShowPagination)
-            {
-                <div class="budget-pagination">
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm budget-pagination-nav"
-                            @onclick="GoToPreviousPage"
-                            disabled="@(CurrentPage == 1)">
-                        Poprzednia
-                    </button>
-
-                    <div class="budget-pagination-pages">
-                        @foreach (var pageNumber in PageNumbers)
-                        {
-                            <button type="button"
-                                    class="@GetPageButtonClass(pageNumber)"
-                                    @onclick="() => GoToPage(pageNumber)">
-                                @pageNumber
-                            </button>
-                        }
-                    </div>
-
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm budget-pagination-nav"
-                            @onclick="GoToNextPage"
-                            disabled="@(CurrentPage == TotalPages)">
-                        Następna
-                    </button>
+                            }
+                        </tbody>
+                    </table>
                 </div>
-            }
+
+                @if (ShouldShowPagination)
+                {
+                    <div class="budget-pagination">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm budget-pagination-nav"
+                                @onclick="GoToPreviousPage"
+                                disabled="@(CurrentPage == 1)">
+                            Poprzednia
+                        </button>
+
+                        <div class="budget-pagination-pages">
+                            @foreach (var pageNumber in PageNumbers)
+                            {
+                                <button type="button"
+                                        class="@GetPageButtonClass(pageNumber)"
+                                        @onclick="() => GoToPage(pageNumber)">
+                                    @pageNumber
+                                </button>
+                            }
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm budget-pagination-nav"
+                                @onclick="GoToNextPage"
+                                disabled="@(CurrentPage == TotalPages)">
+                            Następna
+                        </button>
+                    </div>
+                }
+            </div>
 
         </section>
     }
 
     <section class="budget-card budget-card-form">
-        <div class="budget-section-heading">
-            <h2>Dodaj wydatek</h2>
-            <p class="budget-section-subtitle">Nowy wpis pojawi si&#281; na li&#347;cie powy&#380;ej z zachowaniem aktywnych filtr&oacute;w.</p>
-        </div>
-
-        <form>
-            <div class="budget-grid">
-                <div>
+        <form class="budget-expense-form">
+            <div class="budget-expense-form-row">
+                <div class="budget-expense-field budget-expense-field-name">
                     <label class="form-label" for="expense-name">Nazwa</label>
                     <input id="expense-name" class="form-control" @bind="name" />
                 </div>
 
-                <div>
+                <div class="budget-expense-field budget-expense-field-date">
+                    <label class="form-label" for="expense-date">Data</label>
+                    <input id="expense-date"
+                           class="form-control"
+                           type="date"
+                           @bind="newExpenseCreatedAt"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+
+                <div class="budget-expense-field budget-expense-field-category">
+                    <label class="form-label" for="expense-category">Kategoria</label>
+                    <select id="expense-category" @bind="newExpenseCategoryId" class="form-control">
+                        @foreach (var cat in AvailableCategories)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="budget-expense-field budget-expense-field-amount">
                     <label class="form-label" for="expense-amount">Kwota</label>
-                    <div class="input-group budget-currency-group amount-field-group">
+                    <div class="input-group budget-currency-group budget-expense-amount-group">
                         <input id="expense-amount"
                                class="form-control text-end amount-number-input"
                                type="number"
@@ -357,18 +384,10 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="form-label" for="expense-category">Kategoria</label>
-                    <select id="expense-category" @bind="newExpenseCategoryId" class="form-control">
-                        @foreach (var cat in categories.Where(c => c.Id != 0))
-                        {
-                            <option value="@cat.Id">@cat.Name</option>
-                        }
-                    </select>
+                <div class="budget-expense-action">
+                    <button class="btn btn-success budget-expense-submit" type="button" @onclick="AddExpense" disabled="@(currentBudget is null)">Dodaj</button>
                 </div>
             </div>
-
-            <button class="btn btn-success" type="button" @onclick="AddExpense" disabled="@(currentBudget is null)">Dodaj wydatek</button>
         </form>
     </section>
 </div>
@@ -388,6 +407,7 @@
     private int selectedYear = DateTime.Now.Year;
     private int selectedMonth = DateTime.Now.Month;
     private string name = string.Empty;
+    private DateTime newExpenseCreatedAt = DateTime.Today;
     private decimal amount;
     private int newExpenseCategoryId;
     private string statusMessage = string.Empty;
@@ -437,6 +457,9 @@
         SortedFilteredExpenses
             .Skip((CurrentPage - 1) * PageSize)
             .Take(PageSize);
+
+    private IEnumerable<Category> AvailableCategories =>
+        categories.Where(category => !IsSystemCategory(category));
 
     private int TotalPages =>
         Math.Max(1, (int)Math.Ceiling(SortedFilteredExpenses.Count() / (double)PageSize));
@@ -508,6 +531,19 @@
         return selectedCategoryIds.Contains(categoryId)
             ? "budget-filter-category-option budget-filter-category-option-selected"
             : "budget-filter-category-option";
+    }
+
+    private static bool IsSystemCategory(Category category)
+    {
+        return category.Id == 0
+            || string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    private static bool IsNoCategoryExpense(ExpenseDto expense)
+    {
+        return expense.CategoryId == 0
+            || string.IsNullOrWhiteSpace(expense.CategoryName)
+            || string.Equals(expense.CategoryName, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
     }
 
     private async Task SetSortAsync(BudgetSortColumn column)
@@ -697,7 +733,7 @@
 
         if (newExpenseCategoryId == 0)
         {
-            newExpenseCategoryId = categories.FirstOrDefault()?.Id ?? 0;
+            newExpenseCategoryId = categories.FirstOrDefault(category => !IsSystemCategory(category))?.Id ?? 0;
         }
     }
 
@@ -725,6 +761,7 @@
             {
                 Name = name,
                 Amount = amount,
+                CreatedAt = newExpenseCreatedAt,
                 CategoryId = newExpenseCategoryId == 0 ? 0 : newExpenseCategoryId
             };
 
@@ -737,8 +774,9 @@
             }
 
             name = string.Empty;
+            newExpenseCreatedAt = DateTime.Today;
             amount = 0;
-            newExpenseCategoryId = categories.FirstOrDefault()?.Id ?? 0;
+            newExpenseCategoryId = categories.FirstOrDefault(category => !IsSystemCategory(category))?.Id ?? 0;
 
             await ApplyFiltersNowAsync(force: true);
             await ShowExpenseAddedMessageAsync();
@@ -1579,30 +1617,29 @@
         width: 100%;
     }
 
-    .budget-table th:nth-child(1),
-    .budget-table td:nth-child(1) {
-        width: 27%;
+    .budget-col-name {
+        width: var(--budget-col-name-width);
     }
 
-    .budget-table th:nth-child(2),
-    .budget-table td:nth-child(2) {
-        width: 16%;
+    .budget-col-date {
+        width: var(--budget-col-date-width);
     }
 
-    .budget-table th:nth-child(3),
-    .budget-table td:nth-child(3) {
-        width: 22%;
+    .budget-col-category {
+        width: var(--budget-col-category-width);
     }
 
-    .budget-table th:nth-child(4),
-    .budget-table td:nth-child(4) {
-        width: 15%;
-        text-align: right;
+    .budget-col-amount {
+        width: var(--budget-col-amount-width);
     }
 
-    .budget-table th:nth-child(5),
-    .budget-table td:nth-child(5) {
-        width: 20%;
+    .budget-col-actions {
+        width: var(--budget-col-actions-width);
+    }
+
+    .budget-table th,
+    .budget-table td {
+        min-width: 0;
     }
 
     .budget-table td {
@@ -1613,7 +1650,7 @@
 
     .category-text {
         display: inline-block;
-        max-width: 200px;
+        max-width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1621,17 +1658,39 @@
         cursor: pointer;
     }
 
-    .budget-table td:nth-child(5) {
+    .budget-missing-category-badge {
+        background-color: #ffe5e5;
+        color: #c62828;
+        font-weight: 700;
+    }
+
+    .budget-table th:nth-child(4),
+    .budget-table td:nth-child(4) {
+        text-align: right;
+    }
+
+    .budget-table-actions-header {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .budget-expense-cell-actions {
         overflow: visible;
         white-space: nowrap;
         display: flex;
-        gap: 6px;
+        gap: 0.4rem;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: flex-end;
+        padding-right: 0;
     }
 
-    .budget-table td:nth-child(5) .btn {
+    .budget-expense-cell-actions .btn {
         flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .budget-table td:nth-child(2),
+    .budget-table td:nth-child(4) {
         white-space: nowrap;
     }
 
@@ -1959,4 +2018,5 @@
         }
     }
 </style>
+
 
