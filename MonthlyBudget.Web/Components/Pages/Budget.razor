@@ -535,8 +535,21 @@
 
     private static bool IsSystemCategory(Category category)
     {
-        return category.Id == 0
+        return category.IsSystem
+            || category.Id == 0
             || string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    private int GetDefaultExpenseCategoryId()
+    {
+        return AvailableCategories.FirstOrDefault()?.Id ?? 0;
+    }
+
+    private int NormalizeEditableCategoryId(int categoryId)
+    {
+        return categoryId > 0 && AvailableCategories.Any(category => category.Id == categoryId)
+            ? categoryId
+            : 0;
     }
 
     private static bool IsNoCategoryExpense(ExpenseDto expense)
@@ -731,9 +744,11 @@
     {
         categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories") ?? new();
 
+        newExpenseCategoryId = NormalizeEditableCategoryId(newExpenseCategoryId);
+
         if (newExpenseCategoryId == 0)
         {
-            newExpenseCategoryId = categories.FirstOrDefault(category => !IsSystemCategory(category))?.Id ?? 0;
+            newExpenseCategoryId = GetDefaultExpenseCategoryId();
         }
     }
 
@@ -776,7 +791,7 @@
             name = string.Empty;
             newExpenseCreatedAt = DateTime.Today;
             amount = 0;
-            newExpenseCategoryId = categories.FirstOrDefault(category => !IsSystemCategory(category))?.Id ?? 0;
+            newExpenseCategoryId = GetDefaultExpenseCategoryId();
 
             await ApplyFiltersNowAsync(force: true);
             await ShowExpenseAddedMessageAsync();
@@ -827,7 +842,7 @@
         editingName = expense.Name;
         editingAmount = expense.Amount;
         editingCreatedAt = expense.CreatedAt;
-        editingCategoryId = expense.CategoryId;
+        editingCategoryId = NormalizeEditableCategoryId(expense.CategoryId);
     }
 
     private void CancelEdit()
@@ -1563,6 +1578,7 @@
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public bool IsSystem { get; set; }
     }
 }
 

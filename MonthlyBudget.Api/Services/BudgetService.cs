@@ -5,8 +5,6 @@ namespace MonthlyBudget.Api;
 
 public class BudgetService : IBudgetService
 {
-    private const int NoCategoryId = 0;
-    private const string NoCategoryName = "Brak kategorii";
     private readonly BudgetDbContext _db;
     private List<BudgetModel> _budgets;
     private readonly Lock _lock = new();
@@ -107,7 +105,7 @@ public class BudgetService : IBudgetService
                 Name = expense.Name,
                 Amount = expense.Amount,
                 CreatedAt = DateTime.Now,
-                CategoryId = category?.Id ?? NoCategoryId,
+                CategoryId = category?.Id ?? CategoryDefaults.NoCategoryId,
                 Category = category,
                 MonthlyBudgetId = budget.Id,
                 MonthlyBudget = budget
@@ -121,7 +119,10 @@ public class BudgetService : IBudgetService
 
     public List<Category> GetCategories()
     {
-        return _db.Categories.ToList();
+        return _db.Categories
+            .OrderByDescending(category => category.IsSystem)
+            .ThenBy(category => category.Name)
+            .ToList();
     }
 
     public Category? AddCategory(string name)
@@ -135,7 +136,7 @@ public class BudgetService : IBudgetService
 
         normalized = char.ToUpper(normalized[0]) + normalized.Substring(1);
 
-        if (normalized == NoCategoryName)
+        if (CategoryDefaults.IsNoCategoryName(normalized))
         {
             return null;
         }
@@ -157,7 +158,7 @@ public class BudgetService : IBudgetService
         lock (_lock)
         {
             var category = _db.Categories.FirstOrDefault(c => c.Id == id);
-            if (category == null || category.Id == NoCategoryId)
+            if (category == null || category.IsSystem || category.Id == CategoryDefaults.NoCategoryId)
             {
                 return null;
             }
@@ -170,7 +171,7 @@ public class BudgetService : IBudgetService
 
             normalized = char.ToUpper(normalized[0]) + normalized.Substring(1);
 
-            if (normalized == NoCategoryName)
+            if (CategoryDefaults.IsNoCategoryName(normalized))
             {
                 return null;
             }
@@ -207,15 +208,15 @@ public class BudgetService : IBudgetService
     {
         lock (_lock)
         {
-            if (id == NoCategoryId)
+            if (id == CategoryDefaults.NoCategoryId)
                 return false;
 
             var category = _db.Categories.FirstOrDefault(c => c.Id == id);
-            if (category == null) return false;
+            if (category == null || category.IsSystem) return false;
 
             foreach (var expense in _budgets.SelectMany(budget => budget.Expenses).Where(expense => expense.CategoryId == id))
             {
-                expense.CategoryId = NoCategoryId;
+                expense.CategoryId = CategoryDefaults.NoCategoryId;
                 expense.Category = null;
             }
 
@@ -285,7 +286,7 @@ public class BudgetService : IBudgetService
             expense.Name = request.Name;
             expense.Amount = request.Amount;
             expense.CreatedAt = request.CreatedAt;
-            expense.CategoryId = category?.Id ?? NoCategoryId;
+            expense.CategoryId = category?.Id ?? CategoryDefaults.NoCategoryId;
             expense.Category = category;
 
             SaveData();
@@ -364,7 +365,7 @@ public class BudgetService : IBudgetService
     {
         lock (_lock)
         {
-            var budget = _budgets.FirstOrDefault(b => b.Month == month);
+            var budget = GetOrCreateBudgetForMonth(month);
             return PrepareBudgetForResponse(budget, categoryId: categoryId);
         }
     }
@@ -387,7 +388,7 @@ public class BudgetService : IBudgetService
                 Console.WriteLine($"Existing: {b.Month}");
             }
 
-            var budget = _budgets.FirstOrDefault(b => b.Month == yearMonth);
+            var budget = GetOrCreateBudgetForMonth(yearMonth);
             return PrepareBudgetForResponse(
                 budget,
                 search,
@@ -443,6 +444,29 @@ public class BudgetService : IBudgetService
             .ToList();
 
         return responseBudget;
+    }
+
+    private BudgetModel GetOrCreateBudgetForMonth(string yearMonth)
+    {
+        var budget = _budgets.FirstOrDefault(b => b.Month == yearMonth);
+
+        if (budget is not null)
+        {
+            budget.Expenses ??= [];
+            return budget;
+        }
+
+        budget = new BudgetModel
+        {
+            Id = _nextBudgetId++,
+            Month = yearMonth,
+            Income = 0,
+            Expenses = []
+        };
+
+        _budgets.Add(budget);
+        SaveData();
+        return budget;
     }
 
     private static IEnumerable<Expense> ApplyExpenseFilters(
@@ -514,7 +538,7 @@ public class BudgetService : IBudgetService
                     : null;
 
                 var resolvedCategory = ResolveCategoryReference(expense.CategoryId, storedCategoryName);
-                var normalizedCategoryId = resolvedCategory?.Id ?? NoCategoryId;
+                var normalizedCategoryId = resolvedCategory?.Id ?? CategoryDefaults.NoCategoryId;
 
                 if (expense.CategoryId != normalizedCategoryId)
                 {
@@ -531,18 +555,21 @@ public class BudgetService : IBudgetService
 
     private Category? ResolveUserCategoryOrNone(int? categoryId)
     {
-        return ResolveCategoryReference(categoryId, null);
+        var category = ResolveCategoryReference(categoryId, null);
+        return category?.IsSystem == true
+            ? null
+            : category;
     }
 
     private Category? ResolveCategoryReference(int? categoryId, string? storedCategoryName)
     {
-        if (!categoryId.HasValue || categoryId.Value == NoCategoryId)
+        if (!categoryId.HasValue || categoryId.Value == CategoryDefaults.NoCategoryId)
         {
             return null;
         }
 
         var category = _db.Categories.FirstOrDefault(c => c.Id == categoryId.Value);
-        if (category is null)
+        if (category is null || category.IsSystem)
         {
             return null;
         }
@@ -558,8 +585,8 @@ public class BudgetService : IBudgetService
 
     private static int NormalizeCategoryId(int? categoryId)
     {
-        return !categoryId.HasValue || categoryId.Value == NoCategoryId
-            ? NoCategoryId
+        return !categoryId.HasValue || categoryId.Value == CategoryDefaults.NoCategoryId
+            ? CategoryDefaults.NoCategoryId
             : categoryId.Value;
     }
 

@@ -13,6 +13,8 @@ builder.Services.AddScoped<IBudgetService, BudgetService>();
 
 var app = builder.Build();
 
+await BudgetDbInitializer.InitializeAsync(app.Services);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

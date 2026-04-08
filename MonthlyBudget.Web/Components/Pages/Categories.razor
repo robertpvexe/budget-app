@@ -227,13 +227,15 @@
 
     private static bool IsProtectedCategory(Category category)
     {
-        return string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
+        return category.IsSystem
+            || string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
     }
 
     public class Category
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public bool IsSystem { get; set; }
     }
 
     private sealed class CategoryUsageResponse
