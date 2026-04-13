@@ -1,4 +1,4 @@
-﻿.budget-page {
+.budget-page {
     display: grid;
     gap: 1.5rem;
 }
@@ -143,4 +143,3 @@
         min-height: 148px;
     }
 }
-
