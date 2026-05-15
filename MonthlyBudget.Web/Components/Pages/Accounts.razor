@@ -1,0 +1,493 @@
+@page "/konta"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using System.Globalization
+
+<PageTitle>Konta</PageTitle>
+
+<div class="accounts-page">
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="accounts-status-overlay" aria-live="polite" aria-atomic="true">
+            <div class="accounts-status-popup @(isStatusError ? "accounts-status-error" : "accounts-status-success")">
+                <span>@statusMessage</span>
+                <button type="button"
+                        class="accounts-status-close"
+                        aria-label="Zamknij komunikat"
+                        @onclick="DismissStatus">
+                    x
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (showIncomePeriodPicker)
+    {
+        <button type="button"
+                class="accounts-period-overlay"
+                aria-label="Zamknij wybór okresu wpływów"
+                @onclick="CloseIncomePeriodPicker"></button>
+    }
+
+    <section class="accounts-grid">
+        <article class="accounts-card accounts-summary-card">
+            <div class="accounts-summary-header">
+                <span class="accounts-summary-label">Suma wpływów</span>
+                <div class="accounts-period-control">
+                    <button type="button"
+                            class="accounts-period-trigger"
+                            aria-expanded="@showIncomePeriodPicker"
+                            @onclick="ToggleIncomePeriodPicker">
+                        @SelectedIncomeMonthLabel
+                    </button>
+
+                    @if (showIncomePeriodPicker)
+                    {
+                        <div class="accounts-period-picker">
+                            <select class="form-select form-select-sm accounts-period-select"
+                                    aria-label="Miesiąc wpływów"
+                                    @bind="SelectedIncomeMonthNumber">
+                                @foreach (var monthNumber in MonthNumbers)
+                                {
+                                    <option value="@monthNumber">@GetMonthName(monthNumber)</option>
+                                }
+                            </select>
+
+                            <select class="form-select form-select-sm accounts-period-year"
+                                    aria-label="Rok wpływów"
+                                    @bind="SelectedIncomeYear">
+                                @foreach (var year in IncomeYearOptions)
+                                {
+                                    <option value="@year">@year</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                </div>
+            </div>
+            <strong class="accounts-summary-value">@FormatCurrency(TotalIncome)</strong>
+        </article>
+
+        <section class="accounts-card accounts-form-card">
+            <h2 class="accounts-section-title">Dodaj wpływ</h2>
+
+            <form class="accounts-form" @onsubmit="AddIncomeAsync" @onsubmit:preventDefault>
+                <div class="accounts-form-field">
+                    <label class="form-label" for="income-description">Opis</label>
+                    <input id="income-description"
+                           class="form-control"
+                           maxlength="200"
+                           placeholder="Np. Przelew, Wpłata, Premia"
+                           @bind="newIncomeDescription" />
+                </div>
+
+                <div class="accounts-form-field">
+                    <label class="form-label" for="income-date">Data</label>
+                    <input id="income-date"
+                           class="form-control"
+                           type="date"
+                           @bind="newIncomeDate"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+
+                <div class="accounts-form-field accounts-amount-field">
+                    <label class="form-label" for="income-amount">Kwota</label>
+                    <div class="input-group">
+                        <input id="income-amount"
+                               class="form-control text-end"
+                               type="number"
+                               min="0.01"
+                               max="999999999"
+                               step="0.01"
+                               placeholder="0,00"
+                               @bind="newIncomeAmountText" />
+                        <span class="input-group-text">PLN</span>
+                    </div>
+                </div>
+
+                <div class="accounts-form-actions">
+                    <button type="submit" class="btn btn-primary">Dodaj</button>
+                </div>
+            </form>
+        </section>
+    </section>
+
+    <section class="accounts-card accounts-list-card">
+        <div class="accounts-list-header">
+            <span>Wpływy: @SelectedIncomePeriodLabel</span>
+            <span class="accounts-list-count">@IncomeCountLabel</span>
+        </div>
+
+        @if (incomeEntries is null)
+        {
+            <p class="accounts-state">Ładowanie wpływów...</p>
+        }
+        else if (incomeEntries.Count == 0)
+        {
+            <div class="accounts-empty-state">
+                <p>Brak zapisanych wpływów.</p>
+                <p>Dodaj pierwszy wpis, aby rozpocząć rejestr wpływów.</p>
+            </div>
+        }
+        else if (FilteredIncomeEntries.Count == 0)
+        {
+            <div class="accounts-empty-state">
+                <p>Brak wpływów w wybranym miesiącu.</p>
+            </div>
+        }
+        else
+        {
+            <div class="accounts-table-wrapper">
+                <table class="table accounts-table">
+                    <colgroup>
+                        <col class="accounts-col-description" />
+                        <col class="accounts-col-date" />
+                        <col class="accounts-col-amount" />
+                        <col class="accounts-col-actions" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Opis</th>
+                            <th>Data</th>
+                            <th class="accounts-amount-column">Kwota</th>
+                            <th class="accounts-actions-column">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in FilteredIncomeEntries)
+                        {
+                            <tr>
+                                @if (editingIncomeId == entry.Id)
+                                {
+                                    <td class="accounts-income-cell">
+                                        <input class="form-control form-control-sm accounts-edit-control"
+                                               type="text"
+                                               maxlength="200"
+                                               placeholder="@DisplayDescription(entry.Description)"
+                                               @bind="editingDescription" />
+                                    </td>
+                                    <td class="accounts-income-cell">
+                                        <input class="form-control form-control-sm accounts-edit-control"
+                                               type="date"
+                                               @bind="editingDate"
+                                               @bind:format="yyyy-MM-dd" />
+                                    </td>
+                                    <td class="accounts-income-cell accounts-amount-column">
+                                        <div class="input-group input-group-sm accounts-edit-group">
+                                            <input class="form-control form-control-sm accounts-edit-control text-end"
+                                                   type="number"
+                                                   min="0.01"
+                                                   max="999999999"
+                                                   step="0.01"
+                                                   @bind="editingAmountText" />
+                                            <span class="input-group-text">PLN</span>
+                                        </div>
+                                    </td>
+                                    <td class="accounts-income-cell accounts-actions-column">
+                                        <div class="accounts-row-actions">
+                                            <button type="button"
+                                                    class="btn btn-success btn-sm"
+                                                    @onclick="() => SaveIncomeEditAsync(entry.Id)">
+                                                Zapisz
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-sm"
+                                                    @onclick="CancelIncomeEdit">
+                                                Anuluj
+                                            </button>
+                                        </div>
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="accounts-income-cell">@DisplayDescription(entry.Description)</td>
+                                    <td class="accounts-income-cell">@entry.Date.ToString("dd.MM.yyyy")</td>
+                                    <td class="accounts-income-cell accounts-amount-column">@FormatCurrency(entry.Amount)</td>
+                                    <td class="accounts-income-cell accounts-actions-column">
+                                        <div class="accounts-row-actions">
+                                            <button type="button"
+                                                    class="btn btn-outline-primary btn-sm"
+                                                    @onclick="() => StartIncomeEdit(entry)">
+                                                Edytuj
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-danger btn-sm"
+                                                    @onclick="() => DeleteIncomeAsync(entry)">
+                                                Usuń
+                                            </button>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private const decimal MinIncomeAmount = 0.01m;
+    private static readonly CultureInfo PolishCulture = new("pl-PL");
+    private static readonly int[] MonthNumbers = Enumerable.Range(1, 12).ToArray();
+
+    private List<IncomeEntryDto>? incomeEntries;
+    private string newIncomeDescription = string.Empty;
+    private DateTime newIncomeDate = DateTime.Today;
+    private string newIncomeAmountText = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isStatusError;
+    private int statusMessageVersion;
+    private int? editingIncomeId;
+    private string editingDescription = string.Empty;
+    private DateTime editingDate = DateTime.Today;
+    private string editingAmountText = string.Empty;
+    private DateTime selectedIncomeMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private bool showIncomePeriodPicker;
+
+    private List<IncomeEntryDto> FilteredIncomeEntries => incomeEntries?
+        .Where(entry => entry.Date.Year == selectedIncomeMonth.Year && entry.Date.Month == selectedIncomeMonth.Month)
+        .ToList() ?? new();
+
+    private decimal TotalIncome => FilteredIncomeEntries.Sum(entry => entry.Amount);
+
+    private string SelectedIncomeMonthLabel => GetMonthName(selectedIncomeMonth.Month);
+
+    private string SelectedIncomePeriodLabel => selectedIncomeMonth.ToString("MMMM yyyy", PolishCulture);
+
+    private int SelectedIncomeMonthNumber
+    {
+        get => selectedIncomeMonth.Month;
+        set => selectedIncomeMonth = new DateTime(selectedIncomeMonth.Year, value, 1);
+    }
+
+    private int SelectedIncomeYear
+    {
+        get => selectedIncomeMonth.Year;
+        set => selectedIncomeMonth = new DateTime(value, selectedIncomeMonth.Month, 1);
+    }
+
+    private IEnumerable<int> IncomeYearOptions => Enumerable
+        .Range(DateTime.Today.Year - 2, 4);
+
+    private string IncomeCountLabel => incomeEntries is null
+        ? string.Empty
+        : FilteredIncomeEntries.Count switch
+        {
+            1 => "1 wpis",
+            var count when count < 5 && count > 1 => $"{count} wpisy",
+            var count => $"{count} wpisów"
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadIncomeEntriesAsync();
+    }
+
+    private async Task LoadIncomeEntriesAsync()
+    {
+        ClearStatus();
+
+        try
+        {
+            incomeEntries = await Http.GetFromJsonAsync<List<IncomeEntryDto>>("api/income") ?? new();
+        }
+        catch
+        {
+            incomeEntries = new();
+            await ShowStatusAsync("Nie udało się pobrać wpływów.", true);
+        }
+    }
+
+    private async Task AddIncomeAsync()
+    {
+        ClearStatus();
+
+        if (!TryParseDecimal(newIncomeAmountText, out var amount) || amount < MinIncomeAmount)
+        {
+            await ShowStatusAsync("Kwota musi być większa lub równa 0,01 PLN.", true);
+            return;
+        }
+
+        var effectiveDate = newIncomeDate == default
+            ? DateTime.Today
+            : newIncomeDate.Date;
+
+        var response = await Http.PostAsJsonAsync("api/income", new CreateIncomeEntryRequest
+        {
+            Description = newIncomeDescription.Trim(),
+            Date = effectiveDate,
+            Amount = amount
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorMessage = await response.Content.ReadAsStringAsync();
+            await ShowStatusAsync(string.IsNullOrWhiteSpace(errorMessage)
+                ? "Nie udało się dodać wpływu."
+                : errorMessage, true);
+            return;
+        }
+
+        newIncomeDescription = string.Empty;
+        newIncomeAmountText = string.Empty;
+        newIncomeDate = DateTime.Today;
+
+        await LoadIncomeEntriesAsync();
+        await ShowStatusAsync("Wpływ został dodany.", false);
+    }
+
+    private void StartIncomeEdit(IncomeEntryDto entry)
+    {
+        ClearStatus();
+        editingIncomeId = entry.Id;
+        editingDescription = entry.Description;
+        editingDate = entry.Date == default ? DateTime.Today : entry.Date.Date;
+        editingAmountText = entry.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+    }
+
+    private void CancelIncomeEdit()
+    {
+        editingIncomeId = null;
+        editingDescription = string.Empty;
+        editingDate = DateTime.Today;
+        editingAmountText = string.Empty;
+    }
+
+    private async Task SaveIncomeEditAsync(int id)
+    {
+        ClearStatus();
+
+        if (!TryParseDecimal(editingAmountText, out var amount) || amount < MinIncomeAmount)
+        {
+            await ShowStatusAsync("Kwota musi być większa lub równa 0,01 PLN.", true);
+            return;
+        }
+
+        var effectiveDate = editingDate == default
+            ? DateTime.Today
+            : editingDate.Date;
+
+        var response = await Http.PutAsJsonAsync($"api/income/{id}", new CreateIncomeEntryRequest
+        {
+            Description = editingDescription.Trim(),
+            Date = effectiveDate,
+            Amount = amount
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorMessage = await response.Content.ReadAsStringAsync();
+            await ShowStatusAsync(string.IsNullOrWhiteSpace(errorMessage)
+                ? "Nie udało się zapisać wpływu."
+                : errorMessage, true);
+            return;
+        }
+
+        await LoadIncomeEntriesAsync();
+        CancelIncomeEdit();
+        await ShowStatusAsync("Wpływ został zapisany.", false);
+    }
+
+    private async Task DeleteIncomeAsync(IncomeEntryDto entry)
+    {
+        var description = DisplayDescription(entry.Description);
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Czy chcesz usunąć wpis \"{description}\"?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        if (editingIncomeId == entry.Id)
+        {
+            CancelIncomeEdit();
+        }
+
+        var response = await Http.DeleteAsync($"api/income/{entry.Id}");
+        if (!response.IsSuccessStatusCode)
+        {
+            await ShowStatusAsync("Nie udało się usunąć wpływu.", true);
+            return;
+        }
+
+        await LoadIncomeEntriesAsync();
+        await ShowStatusAsync("Wpływ został usunięty.", false);
+    }
+
+    private async Task ShowStatusAsync(string message, bool isError)
+    {
+        statusMessageVersion++;
+        var version = statusMessageVersion;
+        statusMessage = message;
+        isStatusError = isError;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2500);
+
+        if (version == statusMessageVersion)
+        {
+            statusMessage = string.Empty;
+            isStatusError = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ClearStatus()
+    {
+        statusMessageVersion++;
+        statusMessage = string.Empty;
+        isStatusError = false;
+    }
+
+    private void DismissStatus()
+    {
+        ClearStatus();
+    }
+
+    private void ToggleIncomePeriodPicker()
+    {
+        showIncomePeriodPicker = !showIncomePeriodPicker;
+    }
+
+    private void CloseIncomePeriodPicker()
+    {
+        showIncomePeriodPicker = false;
+    }
+
+    private static string GetMonthName(int monthNumber)
+    {
+        return PolishCulture.DateTimeFormat.GetMonthName(monthNumber);
+    }
+
+    private static string DisplayDescription(string? description)
+    {
+        return string.IsNullOrWhiteSpace(description) ? "Bez opisu" : description;
+    }
+
+    private static bool TryParseDecimal(string? input, out decimal value)
+    {
+        return decimal.TryParse(input, NumberStyles.Number, CultureInfo.CurrentCulture, out value)
+            || decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return value.ToString("C", new CultureInfo("pl-PL"));
+    }
+
+    private sealed class IncomeEntryDto
+    {
+        public int Id { get; set; }
+        public decimal Amount { get; set; }
+        public DateTime Date { get; set; }
+        public string Description { get; set; } = string.Empty;
+    }
+
+    private sealed class CreateIncomeEntryRequest
+    {
+        public decimal Amount { get; set; }
+        public DateTime Date { get; set; }
+        public string? Description { get; set; }
+    }
+}

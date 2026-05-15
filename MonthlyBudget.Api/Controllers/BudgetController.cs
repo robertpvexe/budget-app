@@ -23,24 +23,6 @@ public class BudgetController : ControllerBase
         return Ok("API działa");
     }
 
-    [HttpPost]
-    public ActionResult<BudgetModel> CreateMonthlyBudget(CreateMonthlyBudgetRequest request)
-    {
-        if (!IsValidMonth(request.Month))
-        {
-            return BadRequest("Month must have format yyyy-MM.");
-        }
-
-        var budget = new BudgetModel
-        {
-            Month = request.Month,
-            Income = request.Income
-        };
-
-        var createdBudget = _budgetService.CreateMonthlyBudget(budget);
-        return CreatedAtAction(nameof(GetMonthlyBudget), new { id = createdBudget.Id }, createdBudget);
-    }
-
     [HttpPost("{id:int}/expense")]
     public ActionResult<Expense> AddExpense(int id, AddExpenseRequest request)
     {
@@ -53,6 +35,7 @@ public class BudgetController : ControllerBase
         {
             Name = request.Name,
             Amount = request.Amount,
+            CreatedAt = request.CreatedAt,
             CategoryId = request.CategoryId
         };
 
@@ -156,19 +139,6 @@ public class BudgetController : ControllerBase
         return Ok();
     }
 
-    [HttpPut("{id}")]
-    public IActionResult UpdateBudget(int id, [FromBody] UpdateIncomeRequest request)
-    {
-        Console.WriteLine($"=== UPDATE BUDGET === id: {id}, income: {request.Income}");
-
-        var result = _budgetService.UpdateIncome(id, request.Income);
-
-        if (!result)
-            return NotFound("Budget not found");
-
-        return Ok();
-    }
-
     [HttpGet("{id:int}")]
     public ActionResult<BudgetDetailsResponse> GetMonthlyBudget(int id)
     {
@@ -183,11 +153,8 @@ public class BudgetController : ControllerBase
         {
             Id = budget.Id,
             Month = budget.Month,
-            Income = budget.Income,
             Expenses = budget.Expenses,
-            TotalExpenses = budget.GetTotalExpenses(),
-            Remaining = budget.GetRemainingAmount(),
-            Percentage = budget.GetExpensePercentage()
+            TotalExpenses = budget.GetTotalExpenses()
         });
     }
 
@@ -210,11 +177,8 @@ public class BudgetController : ControllerBase
         {
             Id = budget.Id,
             Month = budget.Month,
-            Income = budget.Income,
             Expenses = budget.Expenses,
-            TotalExpenses = budget.GetTotalExpenses(),
-            Remaining = budget.GetRemainingAmount(),
-            Percentage = budget.GetExpensePercentage()
+            TotalExpenses = budget.GetTotalExpenses()
         });
     }
 
@@ -253,11 +217,8 @@ public class BudgetController : ControllerBase
         {
             Id = budget.Id,
             Month = budget.Month,
-            Income = budget.Income,
             Expenses = budget.Expenses,
-            TotalExpenses = budget.GetTotalExpenses(),
-            Remaining = budget.GetRemainingAmount(),
-            Percentage = budget.GetExpensePercentage()
+            TotalExpenses = budget.GetTotalExpenses()
         });
     }
 

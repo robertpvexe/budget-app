@@ -1,0 +1,412 @@
+.home-dashboard {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100%;
+    min-height: calc(100vh - 96px);
+    padding: 0.25rem 0.5rem 0.35rem;
+    box-sizing: border-box;
+}
+
+.dashboard-status-overlay {
+    position: fixed;
+    top: 24px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 1200;
+    pointer-events: none;
+}
+
+.dashboard-status-popup {
+    min-width: 260px;
+    max-width: min(520px, calc(100vw - 2rem));
+    padding: 12px 18px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    animation: dashboard-status-fade 0.2s ease;
+}
+
+.dashboard-status-popup-success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.dashboard-status-popup-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.dashboard-quick-add-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.28);
+    z-index: 1100;
+}
+
+.dashboard-quick-add-modal {
+    width: min(100%, 480px);
+    border: 1px solid var(--app-border);
+    border-radius: 18px;
+    background: var(--app-surface);
+    box-shadow: 0 22px 70px rgba(15, 23, 42, 0.16);
+    padding: 1.25rem;
+}
+
+.dashboard-quick-add-header {
+    margin-bottom: 1rem;
+}
+
+.dashboard-quick-add-title {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.dashboard-quick-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+}
+
+.dashboard-quick-add-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.95rem;
+}
+
+.dashboard-quick-add-field .form-label {
+    margin-bottom: 0.35rem;
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.dashboard-quick-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.35rem;
+}
+
+.dashboard-shell {
+    position: relative;
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    margin-top: 0.25rem;
+    padding: 0 0 0.25rem;
+    background: transparent;
+}
+
+.dashboard-recent-expenses {
+    width: min(100%, 760px);
+    margin-top: 0;
+    padding: 0 0 0.35rem;
+}
+
+.dashboard-recent-expenses-header {
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--app-border-soft);
+    color: var(--app-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.dashboard-recent-expenses-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-recent-expense-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 1rem;
+    align-items: center;
+    min-height: 42px;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--app-border-soft);
+}
+
+.dashboard-recent-expense-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.dashboard-recent-expense-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.dashboard-recent-expense-date {
+    color: var(--app-text-muted);
+    white-space: nowrap;
+}
+
+.dashboard-recent-expense-amount {
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.dashboard-recent-expenses-empty {
+    margin: 0;
+    color: var(--app-text-muted);
+}
+
+.dashboard-recent-expenses-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.85rem;
+}
+
+.dashboard-recent-expenses-link {
+    color: var(--app-text-muted);
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+
+.dashboard-recent-expenses-link:hover {
+    color: var(--app-text);
+    text-decoration: underline;
+}
+
+.dashboard-range-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.45rem;
+}
+
+.dashboard-range-option {
+    min-width: 92px;
+    padding: 0.7rem 1.1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-range-option:hover {
+    border-color: var(--app-border);
+    color: var(--app-text);
+    background: var(--app-surface);
+}
+
+.dashboard-range-option-active {
+    border-color: #6fb6ff;
+    background: linear-gradient(135deg, #1b6ec2, #3b82d0);
+    color: #ffffff;
+    box-shadow:
+        0 0 0 2px rgba(111, 182, 255, 0.32),
+        0 14px 34px rgba(27, 110, 194, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.dashboard-range-description {
+    margin: 0 0 0.75rem;
+    color: var(--app-text-muted);
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+
+.dashboard-custom-range-panel {
+    position: absolute;
+    top: 5.35rem;
+    left: 50%;
+    z-index: 20;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    gap: 0.65rem;
+    width: min(100%, 360px);
+    margin: 0;
+    padding: 0.45rem;
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    background: var(--app-surface-soft);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-custom-range-input {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 38px;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.dashboard-custom-range-input:focus {
+    border-color: #6fb6ff;
+    outline: none;
+    box-shadow: 0 0 0 0.18rem rgba(37, 140, 251, 0.18);
+}
+
+.dashboard-focus-section {
+    position: relative;
+    width: min(100%, 760px);
+    min-height: 330px;
+    display: grid;
+    place-items: center;
+    padding: 0.45rem 1rem 0.25rem;
+}
+
+.dashboard-balance-circle {
+    width: clamp(286px, 46vw, 396px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 1px solid var(--app-border);
+    background: var(--app-surface);
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.dashboard-balance-label {
+    color: var(--app-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.dashboard-balance-value {
+    color: var(--app-text);
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+}
+
+.dashboard-add-expense-button {
+    position: absolute;
+    right: calc(50% - min(23vw, 198px));
+    bottom: clamp(1.5rem, 5vw, 2.5rem);
+    width: 72px;
+    height: 72px;
+    border: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1b6ec2, #4192e3);
+    color: #ffffff;
+    font-size: 2.2rem;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.dashboard-add-expense-button:hover {
+    background: linear-gradient(135deg, #1861ac, #2f7dcb);
+    transform: scale(1.05);
+}
+
+.dashboard-add-expense-button:focus-visible,
+.dashboard-range-option:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 0 0 0.38rem rgba(37, 140, 251, 0.35);
+}
+
+@keyframes dashboard-status-fade {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .home-dashboard {
+        min-height: calc(100vh - 96px);
+    }
+
+    .dashboard-shell {
+        margin-top: 1rem;
+        padding: 0 0 1rem;
+    }
+
+    .dashboard-quick-add-modal {
+        padding: 1rem;
+        border-radius: 16px;
+    }
+
+    .dashboard-quick-add-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dashboard-recent-expenses {
+        width: 100%;
+        padding: 0.25rem 0 1rem;
+    }
+
+    .dashboard-focus-section {
+        min-height: 340px;
+        width: 100%;
+        padding-inline: 0.25rem;
+    }
+
+    .dashboard-range-description {
+        margin-bottom: 0.85rem;
+    }
+
+    .dashboard-custom-range-panel {
+        top: 5.85rem;
+        width: min(100%, 340px);
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .dashboard-balance-circle {
+        width: clamp(240px, 72vw, 320px);
+    }
+
+    .dashboard-add-expense-button {
+        width: 64px;
+        height: 64px;
+        font-size: 2rem;
+        right: calc(50% - min(36vw, 160px));
+        bottom: 1.5rem;
+    }
+
+    .dashboard-recent-expense-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.2rem;
+        align-items: start;
+    }
+
+    .dashboard-recent-expense-amount {
+        text-align: left;
+    }
+}

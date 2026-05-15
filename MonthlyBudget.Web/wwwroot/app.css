@@ -1,5 +1,80 @@
+:root,
+html[data-theme="light"] {
+    --app-bg: #f6f8fc;
+    --app-surface: #ffffff;
+    --app-surface-soft: #f8fbff;
+    --app-surface-muted: #eef4fb;
+    --app-input-bg: #ffffff;
+    --app-border: #d9e2ec;
+    --app-border-soft: #e4ebf3;
+    --app-text: #1f2d3d;
+    --app-text-muted: #66758a;
+    --bs-body-bg: #f6f8fc;
+    --bs-body-color: #1f2d3d;
+    --bs-border-color: #d9e2ec;
+    --bs-secondary-color: #66758a;
+    --bs-secondary-color-rgb: 102, 117, 138;
+    --bs-tertiary-bg: #f8fbff;
+    --bs-emphasis-color: #1f2d3d;
+}
+
+html[data-theme="light"] {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    --app-bg: #1e1f2d;
+    --app-surface: #2a2a3d;
+    --app-surface-soft: #313248;
+    --app-surface-muted: #373953;
+    --app-input-bg: #323449;
+    --app-border: #444764;
+    --app-border-soft: #3a3d57;
+    --app-text: #eaeaf0;
+    --app-text-muted: #a0a0b0;
+    --bs-body-bg: #1e1f2d;
+    --bs-body-color: #eaeaf0;
+    --bs-border-color: #444764;
+    --bs-secondary-color: #a0a0b0;
+    --bs-secondary-color-rgb: 160, 160, 176;
+    --bs-tertiary-bg: #313248;
+    --bs-emphasis-color: #eaeaf0;
+    color-scheme: dark;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+
+.page,
+.main-content,
+article,
+.content {
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+
+.page {
+    min-height: 100vh;
+}
+
+main,
+article,
+.content,
+.container,
+.container-fluid {
+    color: var(--app-text);
+}
+
+.table,
+.table > :not(caption) > * > * {
+    color: var(--app-text);
 }
 
 a, .btn-link {
@@ -18,6 +93,187 @@ a, .btn-link {
 
 .content {
     padding-top: 1.1rem;
+}
+
+h1, h2, h3, h4, h5, h6,
+label,
+.form-label,
+th,
+td,
+p,
+span,
+strong {
+    color: inherit;
+}
+
+.card,
+.budget-card,
+.categories-card,
+.accounts-card,
+.dashboard-quick-add-modal,
+.settings-card {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.summary-item,
+.budget-period-chip,
+.table-header > span,
+.budget-page-button,
+.dashboard-range-option {
+    background: var(--app-surface-soft);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.form-control,
+.form-select,
+select,
+textarea {
+    background-color: var(--app-input-bg);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.form-control::placeholder,
+.form-select::placeholder,
+textarea::placeholder {
+    color: var(--app-text-muted);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+    background-color: var(--app-surface-soft);
+    color: var(--app-text-muted);
+}
+
+.input-group-text {
+    background-color: var(--app-surface-soft);
+    border-color: var(--app-border);
+    color: var(--app-text-muted);
+}
+
+.table {
+    --bs-table-color: var(--app-text);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--app-border-soft);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+    color: var(--app-text);
+}
+
+.table > :not(caption) > * > * {
+    background-color: transparent;
+    color: inherit;
+    border-bottom-color: var(--app-border-soft);
+}
+
+.text-muted,
+.text-secondary,
+.form-text,
+.small,
+small {
+    color: var(--app-text-muted) !important;
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .main-content,
+html[data-theme="dark"] article,
+html[data-theme="dark"] .content {
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .budget-card,
+html[data-theme="dark"] .categories-card,
+html[data-theme="dark"] .accounts-card,
+html[data-theme="dark"] .dashboard-quick-add-modal,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .summary-item,
+html[data-theme="dark"] .budget-period-chip,
+html[data-theme="dark"] .table-header > span,
+html[data-theme="dark"] .dashboard-range-option {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] span,
+html[data-theme="dark"] strong,
+html[data-theme="dark"] label,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+    color: inherit;
+}
+
+html[data-theme="dark"] .dashboard-balance-circle {
+    background: var(--app-surface);
+    border-color: rgba(110, 119, 149, 0.72);
+}
+
+html[data-theme="dark"] .dashboard-recent-expenses-header,
+html[data-theme="dark"] .dashboard-recent-expense-row,
+html[data-theme="dark"] .categories-list-header,
+html[data-theme="dark"] .categories-list-item,
+html[data-theme="dark"] .accounts-list-header {
+    border-bottom-color: var(--app-border-soft);
+}
+
+html[data-theme="dark"] .dashboard-status-popup-success,
+html[data-theme="dark"] .budget-status,
+html[data-theme="dark"] .accounts-status-success,
+html[data-theme="dark"] .categories-status-success {
+    background: #243449;
+    border-color: #355173;
+    color: #d8e8ff;
+}
+
+html[data-theme="dark"] .dashboard-status-popup-error,
+html[data-theme="dark"] .accounts-status-error,
+html[data-theme="dark"] .categories-status-error,
+html[data-theme="dark"] .status-popup-error {
+    background: #4a2d36;
+    border-color: #7b4b58;
+    color: #ffd9de;
+}
+
+html[data-theme="dark"] .status-popup-success,
+html[data-theme="dark"] .budget-missing-category-badge {
+    background: #243449;
+    border-color: #355173;
+    color: #d8e8ff;
+}
+
+html[data-theme="dark"] .btn-outline-secondary {
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+html[data-theme="dark"] .btn-outline-secondary:hover {
+    background: var(--app-surface-soft);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.budget-filter-category-menu,
+.filter-panel .budget-filter-panel-content {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.budget-filter-category-option-selected,
+.no-hover:hover {
+    color: var(--app-text);
 }
 
 h1:focus {

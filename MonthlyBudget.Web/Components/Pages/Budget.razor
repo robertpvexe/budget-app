@@ -1,6 +1,6 @@
 @page "/wydatki"
 @rendermode InteractiveServer
-@implements IDisposable
+@implements IAsyncDisposable
 @inject HttpClient Http
 @inject IJSRuntime JS
 @using System.Globalization
@@ -11,18 +11,18 @@
 <PageTitle>Lista wydatk&#243;w</PageTitle>
 
 <div class="budget-page">
-    @if (!string.IsNullOrWhiteSpace(statusMessage))
-    {
-        <div class="status-overlay">
-            <div class="status-popup @(isStatusError ? "status-popup-error" : "status-popup-success")">
-                @statusMessage
-            </div>
-        </div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage) || !string.IsNullOrWhiteSpace(expenseAddedMessage))
+    @if (!string.IsNullOrWhiteSpace(statusMessage)
+        || !string.IsNullOrWhiteSpace(lastExpenseClickMessage)
+        || !string.IsNullOrWhiteSpace(expenseAddedMessage))
     {
         <div class="budget-toast-stack" aria-live="polite" aria-atomic="true">
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <div class="status-popup @(isStatusError ? "status-popup-error" : "status-popup-success")">
+                    @statusMessage
+                </div>
+            }
+
             @if (!string.IsNullOrWhiteSpace(lastExpenseClickMessage))
             {
                 <div class="budget-status budget-status-toast">@lastExpenseClickMessage</div>
@@ -33,6 +33,14 @@
                 <div class="budget-status budget-status-toast">@expenseAddedMessage</div>
             }
         </div>
+    }
+
+    @if (showBudgetPeriodPicker)
+    {
+        <button type="button"
+                class="budget-period-overlay"
+                aria-label="Zamknij wybór miesiąca listy wydatków"
+                @onclick="CloseBudgetPeriodPicker"></button>
     }
 
     @if (currentBudget is not null)
@@ -183,12 +191,71 @@
 
             </form>
 
-            <div class="budget-card-main-content">
+            <div class="budget-card-main-content" @ref="adaptivePaginationContainer">
                 <div class="table-header">
-                    <span>Lista wydatk&#243;w: @currentBudget.Month</span>
+                    <span class="budget-table-title">
+                        Lista wydatk&#243;w za
+                        <span class="budget-period-control">
+                            @if (IsBudgetPeriodPickerEnabled)
+                            {
+                                <button type="button"
+                                        class="budget-period-trigger"
+                                        aria-expanded="@showBudgetPeriodPicker"
+                                        @onclick="ToggleBudgetPeriodPicker">
+                                    @BudgetPeriodHeaderLabel
+                                </button>
+
+                                @if (showBudgetPeriodPicker)
+                                {
+                                    <span class="budget-period-picker">
+                                        <select class="form-select form-select-sm budget-period-select"
+                                                aria-label="Miesiąc listy wydatków"
+                                                value="@selectedMonth"
+                                                @onchange="OnBudgetMonthChangedAsync">
+                                            @foreach (var monthNumber in MonthNumbers)
+                                            {
+                                                <option value="@monthNumber">@GetMonthName(monthNumber)</option>
+                                            }
+                                        </select>
+
+                                        <select class="form-select form-select-sm budget-period-year"
+                                                aria-label="Rok listy wydatków"
+                                                value="@selectedYear"
+                                                @onchange="OnBudgetYearChangedAsync">
+                                            @foreach (var year in BudgetYearOptions)
+                                            {
+                                                <option value="@year">@year</option>
+                                            }
+                                        </select>
+                                    </span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="budget-period-static">@BudgetPeriodHeaderLabel</span>
+                                <span class="budget-period-info"
+                                      title="Nie można edytować tej opcji, gdy aktywne są inne filtry."
+                                      aria-label="Nie można edytować tej opcji, gdy aktywne są inne filtry.">
+                                    i
+                                </span>
+                            }
+                        </span>
+                    </span>
                 </div>
 
                 <div class="budget-table-section">
+                    <div class="budget-table-summary" aria-label="Podsumowanie listy wydatków">
+                        <div class="budget-table-summary-count">
+                            <span>Operacje</span>
+                            <strong>@DisplayedExpensesRange</strong>
+                        </div>
+
+                        <div class="budget-table-summary-amount">
+                            <span>Suma wydatków</span>
+                            <strong>@FormatCurrency(DisplayedExpensesTotal)</strong>
+                        </div>
+                    </div>
+
                     <table class="table budget-table">
                         <colgroup>
                             <col class="budget-col-name" />
@@ -264,7 +331,7 @@
                                                            min="0.01"
                                                            max="999999999"
                                                            step="0.01"
-                                                           @bind="editingAmount" />
+                                                           @bind="editingAmountText" />
                                                     <span class="input-group-text expense-edit-suffix">PLN</span>
                                                 </div>
                                             </td>
@@ -379,7 +446,7 @@
                                min="0.01"
                                max="999999999"
                                step="0.01"
-                               @bind="amount" />
+                               @bind="amountText" />
                         <span class="input-group-text">PLN</span>
                     </div>
                 </div>
@@ -396,8 +463,12 @@
     private const decimal MinExpenseAmount = 0.01m;
     private const decimal MaxExpenseAmount = 999999999m;
     private const int FilterDebounceDelayMs = 300;
-    private const int PageSize = 10;
+    private const int DefaultPageSize = 10;
+    private const int MinAdaptivePageSize = 6;
+    private const int MaxAdaptivePageSize = 100;
     private const string BudgetViewStateStorageKey = "monthly-budget.budget-view-state";
+    private static readonly CultureInfo PolishCulture = new("pl-PL");
+    private static readonly int[] MonthNumbers = Enumerable.Range(1, 12).ToArray();
     private static readonly JsonSerializerOptions BudgetViewStateJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -408,7 +479,7 @@
     private int selectedMonth = DateTime.Now.Month;
     private string name = string.Empty;
     private DateTime newExpenseCreatedAt = DateTime.Today;
-    private decimal amount;
+    private string amountText = "0.00";
     private int newExpenseCategoryId;
     private string statusMessage = string.Empty;
     private bool isStatusError;
@@ -431,6 +502,7 @@
     private bool isRestoringViewState;
     private bool pendingViewStatePersistence;
     private bool shouldPersistRestoredViewState;
+    private bool showBudgetPeriodPicker;
     private int filterRequestVersion;
     private int categoryFilterRenderVersion;
     private string lastAppliedFilterState = string.Empty;
@@ -438,14 +510,33 @@
     private BudgetSortColumn currentSortColumn = BudgetSortColumn.Date;
     private SortDirection currentSortDirection = SortDirection.Descending;
     private int currentPage = 1;
+    private int pageSize = DefaultPageSize;
     private List<int> selectedCategoryIds = new();
     private List<Category> categories = new();
     private int? editingExpenseId;
     private string editingName = string.Empty;
-    private decimal editingAmount;
+    private string editingAmountText = "0.00";
     private DateTime editingCreatedAt;
     private int editingCategoryId;
     private BudgetDetailsResponse? currentBudget;
+    private ElementReference adaptivePaginationContainer;
+    private AdaptivePageSizer? adaptivePageSizer;
+    private bool isAdaptivePageSizerRegistered;
+
+    private string SelectedBudgetMonthLabel => GetMonthName(selectedMonth);
+
+    private int PageSize => Math.Clamp(pageSize, MinAdaptivePageSize, MaxAdaptivePageSize);
+
+    private bool IsBudgetPeriodPickerEnabled => !IsAnyFilterActive();
+
+    private bool IsDateFilterActive => fromDateFilter.HasValue || toDateFilter.HasValue;
+
+    private string BudgetPeriodHeaderLabel => IsDateFilterActive
+        ? $"{FormatHeaderDateFilterValue(fromDateFilter)} - {FormatHeaderDateFilterValue(toDateFilter)}"
+        : SelectedBudgetMonthLabel;
+
+    private IEnumerable<int> BudgetYearOptions => Enumerable
+        .Range(DateTime.Today.Year - 2, 4);
 
     private IEnumerable<ExpenseDto> SortedFilteredExpenses =>
         ApplySorting(
@@ -457,6 +548,27 @@
         SortedFilteredExpenses
             .Skip((CurrentPage - 1) * PageSize)
             .Take(PageSize);
+
+    private decimal DisplayedExpensesTotal =>
+        SortedFilteredExpenses.Sum(expense => expense.Amount);
+
+    private string DisplayedExpensesRange
+    {
+        get
+        {
+            var totalExpenses = SortedFilteredExpenses.Count();
+
+            if (totalExpenses == 0)
+            {
+                return "0 z 0";
+            }
+
+            var firstExpenseNumber = ((CurrentPage - 1) * PageSize) + 1;
+            var lastExpenseNumber = Math.Min(CurrentPage * PageSize, totalExpenses);
+
+            return $"{firstExpenseNumber}-{lastExpenseNumber} z {totalExpenses}";
+        }
+    }
 
     private IEnumerable<Category> AvailableCategories =>
         categories.Where(category => !IsSystemCategory(category));
@@ -694,6 +806,41 @@
         }
 
         await EnsureInitialRestoreCompletedAsync();
+        await EnsureAdaptivePageSizerRegisteredAsync();
+    }
+
+    private async Task EnsureAdaptivePageSizerRegisteredAsync()
+    {
+        if (isDisposed || isAdaptivePageSizerRegistered || currentBudget is null)
+        {
+            return;
+        }
+
+        adaptivePageSizer = new AdaptivePageSizer(JS, OnAdaptivePageSizeChangedAsync);
+        await adaptivePageSizer.RegisterAsync(
+            adaptivePaginationContainer,
+            ".budget-expense-row",
+            new AdaptivePageSizerOptions
+            {
+                MinItems = MinAdaptivePageSize,
+                MaxItems = MaxAdaptivePageSize,
+                FallbackItemHeight = 48,
+                ReservedSelector = ".budget-pagination"
+            });
+
+        isAdaptivePageSizerRegistered = true;
+    }
+
+    private async Task OnAdaptivePageSizeChangedAsync(int nextPageSize)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        pageSize = nextPageSize;
+        EnsureCurrentPageInRange();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task EnsureInitialRestoreCompletedAsync()
@@ -767,7 +914,13 @@
                 return;
             }
 
-            if (!await ValidateExpenseAmount(amount))
+            if (!TryParseExpenseAmount(amountText, out var parsedAmount))
+            {
+                await ShowStatusMessageAsync("Kwota musi być większa lub równa 0.01 PLN.", true);
+                return;
+            }
+
+            if (!await ValidateExpenseAmount(parsedAmount))
             {
                 return;
             }
@@ -775,7 +928,7 @@
             var expense = new AddExpenseRequest
             {
                 Name = name,
-                Amount = amount,
+                Amount = parsedAmount,
                 CreatedAt = newExpenseCreatedAt,
                 CategoryId = newExpenseCategoryId == 0 ? 0 : newExpenseCategoryId
             };
@@ -790,7 +943,7 @@
 
             name = string.Empty;
             newExpenseCreatedAt = DateTime.Today;
-            amount = 0;
+            amountText = "0.00";
             newExpenseCategoryId = GetDefaultExpenseCategoryId();
 
             await ApplyFiltersNowAsync(force: true);
@@ -840,7 +993,7 @@
     {
         editingExpenseId = expense.Id;
         editingName = expense.Name;
-        editingAmount = expense.Amount;
+        editingAmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
         editingCreatedAt = expense.CreatedAt;
         editingCategoryId = NormalizeEditableCategoryId(expense.CategoryId);
     }
@@ -848,11 +1001,18 @@
     private void CancelEdit()
     {
         editingExpenseId = null;
+        editingAmountText = "0.00";
     }
 
     private async Task SaveEdit(int expenseId)
     {
-        if (!await ValidateExpenseAmount(editingAmount))
+        if (!TryParseExpenseAmount(editingAmountText, out var parsedAmount))
+        {
+            await ShowStatusMessageAsync("Kwota musi być większa lub równa 0.01 PLN.", true);
+            return;
+        }
+
+        if (!await ValidateExpenseAmount(parsedAmount))
         {
             return;
         }
@@ -862,7 +1022,7 @@
             new
             {
                 name = editingName,
-                amount = editingAmount,
+                amount = parsedAmount,
                 createdAt = editingCreatedAt,
                 categoryId = editingCategoryId == 0 ? 0 : editingCategoryId
             }
@@ -887,6 +1047,12 @@
         }
 
         ResetToFirstPage();
+        if (IsAnyFilterActive())
+        {
+            showBudgetPeriodPicker = false;
+            ResetBudgetPeriodForActiveFilters();
+        }
+
         await PersistViewStateAsync();
         var filterState = GetCurrentFilterState();
         if (filterState == lastScheduledFilterState)
@@ -1073,6 +1239,8 @@
             .ToArray();
 
         return string.Join("|",
+            selectedYear.ToString(CultureInfo.InvariantCulture),
+            selectedMonth.ToString(CultureInfo.InvariantCulture),
             searchTerm.Trim(),
             fromDateFilter?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
             toDateFilter?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
@@ -1331,6 +1499,7 @@
         showDateFilter = false;
         showAmountFilter = false;
         isDropdownOpen = false;
+        showBudgetPeriodPicker = false;
         lastScheduledFilterState = string.Empty;
         currentSortColumn = BudgetSortColumn.Date;
         currentSortDirection = SortDirection.Descending;
@@ -1338,6 +1507,79 @@
         await PersistViewStateAsync();
 
         await ApplyFiltersNowAsync();
+    }
+
+    private void ResetBudgetPeriodForActiveFilters()
+    {
+        if (!IsAnyFilterActive())
+        {
+            return;
+        }
+
+        var effectiveDate = fromDateFilter ?? toDateFilter ?? DateTime.Today;
+        selectedYear = effectiveDate.Year;
+        selectedMonth = effectiveDate.Month;
+    }
+
+    private void ToggleBudgetPeriodPicker()
+    {
+        if (!IsBudgetPeriodPickerEnabled)
+        {
+            showBudgetPeriodPicker = false;
+            return;
+        }
+
+        showBudgetPeriodPicker = !showBudgetPeriodPicker;
+    }
+
+    private void CloseBudgetPeriodPicker()
+    {
+        showBudgetPeriodPicker = false;
+    }
+
+    private async Task OnBudgetMonthChangedAsync(ChangeEventArgs args)
+    {
+        if (!IsBudgetPeriodPickerEnabled)
+        {
+            showBudgetPeriodPicker = false;
+            return;
+        }
+
+        if (!int.TryParse(args.Value?.ToString(), CultureInfo.InvariantCulture, out var month)
+            || month < 1
+            || month > 12
+            || month == selectedMonth)
+        {
+            return;
+        }
+
+        selectedMonth = month;
+        await ChangeBudgetPeriodAsync();
+    }
+
+    private async Task OnBudgetYearChangedAsync(ChangeEventArgs args)
+    {
+        if (!IsBudgetPeriodPickerEnabled)
+        {
+            showBudgetPeriodPicker = false;
+            return;
+        }
+
+        if (!int.TryParse(args.Value?.ToString(), CultureInfo.InvariantCulture, out var year)
+            || year == selectedYear)
+        {
+            return;
+        }
+
+        selectedYear = year;
+        await ChangeBudgetPeriodAsync();
+    }
+
+    private async Task ChangeBudgetPeriodAsync()
+    {
+        ResetToFirstPage();
+        lastScheduledFilterState = string.Empty;
+        await ApplyFiltersNowAsync(force: true);
     }
 
     private void ToggleDropdown()
@@ -1501,14 +1743,56 @@
         return value.ToString("C", new CultureInfo("pl-PL"));
     }
 
+    private static string GetMonthName(int monthNumber)
+    {
+        return PolishCulture.DateTimeFormat.GetMonthName(monthNumber);
+    }
+
     private static string FormatDateFilterValue(DateTime? value)
     {
         return value?.ToString("dd.MM") ?? "..";
     }
 
+    private static string FormatHeaderDateFilterValue(DateTime? value)
+    {
+        return value?.ToString("dd.MM") ?? "...";
+    }
+
     private static string FormatAmountFilterValue(decimal? value)
     {
         return value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "..";
+    }
+
+    private static bool TryParseDecimal(string? input, out decimal value)
+    {
+        return decimal.TryParse(input, NumberStyles.Number, CultureInfo.CurrentCulture, out value)
+            || decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static bool TryParseExpenseAmount(string? input, out decimal value)
+    {
+        value = 0m;
+
+        if (string.IsNullOrWhiteSpace(input) || HasMoreThanTwoDecimalPlaces(input))
+        {
+            return false;
+        }
+
+        return TryParseDecimal(input, out value);
+    }
+
+    private static bool HasMoreThanTwoDecimalPlaces(string input)
+    {
+        var trimmedInput = input.Trim();
+        var separatorIndex = trimmedInput.LastIndexOfAny(['.', ',']);
+
+        if (separatorIndex < 0)
+        {
+            return false;
+        }
+
+        var decimalPlaces = trimmedInput.Length - separatorIndex - 1;
+        return decimalPlaces > 2;
     }
 
     private async Task<bool> ValidateExpenseAmount(decimal value)
@@ -1528,11 +1812,16 @@
         return true;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         isDisposed = true;
         CancelPendingFilterRefresh();
         CancelInFlightFilterRequest();
+
+        if (adaptivePageSizer is not null)
+        {
+            await adaptivePageSizer.DisposeAsync();
+        }
     }
 
     private enum BudgetSortColumn
@@ -1605,9 +1894,9 @@
     }
 
     .status-popup-success {
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        color: #065f46;
+        background: #eef6ff;
+        border: 1px solid #bfd7f2;
+        color: #17406d;
     }
 
     .status-popup-error {
@@ -1675,7 +1964,7 @@
     }
 
     .budget-missing-category-badge {
-        background-color: #ffe5e5;
+        background-color: rgba(198, 40, 40, 0.16);
         color: #c62828;
         font-weight: 700;
     }
@@ -1785,8 +2074,8 @@
         padding: 0.5rem;
         overflow-y: auto;
         list-style: none;
-        background: white;
-        border: 1px solid #ccc;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
@@ -1817,17 +2106,17 @@
     }
 
     .budget-filter-category-option:hover {
-        background-color: #dee2e6;
+        background-color: var(--app-surface-soft);
     }
 
     .budget-filter-category-option-selected {
-        background-color: #e9ecef;
-        color: var(--bs-secondary-color);
+        background-color: var(--app-surface-muted);
+        color: var(--app-text);
         font-weight: 500;
     }
 
     .budget-filter-category-option-selected:hover {
-        background-color: #e9ecef;
+        background-color: var(--app-surface-muted);
         cursor: default;
     }
 
@@ -1838,7 +2127,7 @@
     }
 
     .budget-filter-clear-button:hover {
-        background-color: #e9ecef;
+        background-color: var(--app-surface-soft);
     }
 
     .budget-filter-date,
@@ -1883,9 +2172,9 @@
     }
 
     .no-hover:hover {
-        background-color: #e9ecef !important;
-        border-color: #ced4da !important;
-        color: #212529 !important;
+        background-color: var(--app-surface-muted) !important;
+        border-color: var(--app-border) !important;
+        color: var(--app-text) !important;
         cursor: default;
     }
 
@@ -1926,8 +2215,8 @@
     }
 
     .filter-panel .budget-filter-panel-content {
-        background: white;
-        border: 1px solid #ccc;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
         border-radius: 8px;
         padding: 10px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);

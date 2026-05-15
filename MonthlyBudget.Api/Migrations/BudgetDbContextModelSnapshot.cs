@@ -66,14 +66,33 @@ namespace MonthlyBudget.Api.Migrations
                     b.ToTable("Expenses");
                 });
 
-            modelBuilder.Entity("MonthlyBudget.Api.MonthlyBudget", b =>
+            modelBuilder.Entity("MonthlyBudget.Api.IncomeEntry", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("Income")
+                    b.Property<decimal>("Amount")
                         .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("IncomeEntries");
+                });
+
+            modelBuilder.Entity("MonthlyBudget.Api.MonthlyBudget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Month")
                         .IsRequired()

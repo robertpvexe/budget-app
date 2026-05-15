@@ -7,12 +7,22 @@ public static class CategoryDefaults
 
     public static readonly string[] StarterCategoryNames =
     [
-        NoCategoryName,
-        "Jedzenie",
-        "Napoje",
-        "Rachunki",
-        "Subskrypcje",
-        "Inne"
+        "DOM",
+        "JEDZENIE",
+        "TRANSPORT",
+        "SAMOCHÓD",
+        "RACHUNKI",
+        "ZDROWIE",
+        "PRACA",
+        "ROZRYWKA",
+        "ZAKUPY",
+        "SUBSKRYPCJE",
+        "ZWIERZĘTA",
+        "PODRÓŻE",
+        "PREZENTY",
+        "EDUKACJA",
+        "OSZCZĘDNOŚCI",
+        "INNE"
     ];
 
     public static bool IsNoCategoryName(string? name)

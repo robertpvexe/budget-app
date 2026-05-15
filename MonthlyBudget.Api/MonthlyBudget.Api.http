@@ -1,27 +1,18 @@
 @MonthlyBudget.Api_HostAddress = http://localhost:5226
 
-POST {{MonthlyBudget.Api_HostAddress}}/budget
-Content-Type: application/json
-
-{
-  "month": "2026-03",
-  "income": 6500
-}
-
-###
-
-POST {{MonthlyBudget.Api_HostAddress}}/budget/1/expense
+POST {{MonthlyBudget.Api_HostAddress}}/api/budget/1/expense
 Content-Type: application/json
 
 {
   "name": "Paliwo",
   "amount": 320.50,
-  "category": "Transport"
+  "createdAt": "2026-03-15",
+  "categoryId": 1
 }
 
 ###
 
-GET {{MonthlyBudget.Api_HostAddress}}/budget/1
+GET {{MonthlyBudget.Api_HostAddress}}/api/budget/month/2026-03
 Accept: application/json
 
 ###

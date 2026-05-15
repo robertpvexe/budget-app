@@ -1,0 +1,658 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@using System.Globalization
+
+<PageTitle>Strona główna</PageTitle>
+
+<div class="home-dashboard">
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="dashboard-status-overlay" aria-live="polite" aria-atomic="true">
+            <div class="dashboard-status-popup @(isStatusError ? "dashboard-status-popup-error" : "dashboard-status-popup-success")">
+                @statusMessage
+            </div>
+        </div>
+    }
+
+    @if (isQuickAddOpen)
+    {
+        <div class="dashboard-quick-add-overlay" @onclick="CloseQuickAdd">
+            <div class="dashboard-quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" @onclick:stopPropagation="true">
+                <div class="dashboard-quick-add-header">
+                    <h2 id="quick-add-title" class="dashboard-quick-add-title">Dodaj wydatek</h2>
+                </div>
+
+                <form class="dashboard-quick-add-form">
+                    <div class="dashboard-quick-add-field">
+                        <label class="form-label" for="quick-expense-name">Nazwa</label>
+                        <input id="quick-expense-name"
+                               class="form-control"
+                               @bind="quickExpenseName"
+                               maxlength="100" />
+                    </div>
+
+                    <div class="dashboard-quick-add-grid">
+                        <div class="dashboard-quick-add-field">
+                            <label class="form-label" for="quick-expense-date">Data</label>
+                            <input id="quick-expense-date"
+                                   class="form-control"
+                                   type="date"
+                                   @bind="quickExpenseDate"
+                                   @bind:format="yyyy-MM-dd" />
+                        </div>
+
+                        <div class="dashboard-quick-add-field">
+                            <label class="form-label" for="quick-expense-category">Kategoria</label>
+                            <select id="quick-expense-category"
+                                    class="form-control"
+                                    @bind="quickExpenseCategoryId">
+                                @foreach (var category in AvailableCategories)
+                                {
+                                    <option value="@category.Id">@category.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-quick-add-field">
+                        <label class="form-label" for="quick-expense-amount">Kwota</label>
+                        <div class="input-group">
+                            <input id="quick-expense-amount"
+                                   class="form-control text-end"
+                                   type="number"
+                                   placeholder="0.00"
+                                   min="0.01"
+                                   max="999999999"
+                                   step="0.01"
+                                   @bind="quickExpenseAmount" />
+                            <span class="input-group-text">PLN</span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-quick-add-actions">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseQuickAdd" disabled="@isSavingQuickAdd">Anuluj</button>
+                        <button type="button" class="btn btn-success" @onclick="SaveQuickExpenseAsync" disabled="@isSavingQuickAdd">Dodaj</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    <section class="dashboard-shell">
+        <div class="dashboard-range-picker" role="tablist" aria-label="Wybór zakresu czasu">
+            @foreach (var option in RangeOptions)
+            {
+                var isActive = selectedRange == option;
+
+                <button type="button"
+                        class="dashboard-range-option @(isActive ? "dashboard-range-option-active" : null)"
+                        aria-pressed="@isActive"
+                        @onclick="@(() => SelectRangeAsync(option))">
+                    @option
+                </button>
+            }
+        </div>
+
+        <p class="dashboard-range-description">@selectedRangeDescription</p>
+
+        @if (IsCustomRangePanelOpen)
+        {
+            <div class="dashboard-custom-range-panel" aria-label="Wybór okresu">
+                <input type="date"
+                       class="dashboard-custom-range-input"
+                       aria-label="Data od"
+                       onclick="this.showPicker ? this.showPicker() : this.focus()"
+                       @bind="customRangeStartDate"
+                       @bind:event="onchange"
+                       @bind:format="yyyy-MM-dd"
+                       @bind:after="OnCustomRangeChangedAsync" />
+
+                <input type="date"
+                       class="dashboard-custom-range-input"
+                       aria-label="Data do"
+                       onclick="this.showPicker ? this.showPicker() : this.focus()"
+                       @bind="customRangeEndDate"
+                       @bind:event="onchange"
+                       @bind:format="yyyy-MM-dd"
+                       @bind:after="OnCustomRangeChangedAsync" />
+            </div>
+        }
+
+        <section class="dashboard-focus-section" aria-label="Główne podsumowanie dashboardu">
+            <div class="dashboard-balance-circle">
+                <span class="dashboard-balance-label">Saldo</span>
+                <strong class="dashboard-balance-value">@formattedBalance</strong>
+            </div>
+
+            <button type="button"
+                    class="dashboard-add-expense-button"
+                    title="Dodaj wydatek"
+                    aria-label="Dodaj wydatek"
+                    @onclick="HandleQuickAddAsync">
+                +
+            </button>
+        </section>
+    </section>
+
+    <section class="dashboard-recent-expenses">
+        <div class="dashboard-recent-expenses-header">Ostatnie wydatki</div>
+
+        @if (recentExpenses is null)
+        {
+            <p class="dashboard-recent-expenses-empty">Ładowanie...</p>
+        }
+        else if (recentExpenses.Count == 0)
+        {
+            <p class="dashboard-recent-expenses-empty">Brak wydatków</p>
+        }
+        else
+        {
+            <div class="dashboard-recent-expenses-list">
+                @foreach (var expense in recentExpenses)
+                {
+                    <div class="dashboard-recent-expense-row">
+                        <div class="dashboard-recent-expense-name" title="@expense.Name">@expense.Name</div>
+                        <div class="dashboard-recent-expense-date">@expense.CreatedAt.ToString("dd.MM.yyyy")</div>
+                        <div class="dashboard-recent-expense-amount">@FormatCurrency(expense.Amount)</div>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="dashboard-recent-expenses-footer">
+            <NavLink class="dashboard-recent-expenses-link" href="wydatki">
+                Pokaż więcej
+            </NavLink>
+        </div>
+    </section>
+</div>
+
+@code {
+    private static readonly string[] RangeOptions = ["Dzień", "Tydzień", "Miesiąc", "Rok", "Okres"];
+    private const int RecentExpensesLimit = 6;
+    private const decimal MinExpenseAmount = 0.01m;
+    private const decimal MaxExpenseAmount = 999999999m;
+
+    private string selectedRange = "Miesiąc";
+    private string selectedRangeDescription = string.Empty;
+    private string formattedBalance = FormatCurrency(0m);
+    private DateTime customRangeStartDate = DateTime.Today;
+    private DateTime customRangeEndDate = DateTime.Today;
+    private bool isCustomRangePanelOpen;
+    private decimal incomeTotal;
+    private decimal expenseTotal;
+    private List<ExpenseDto>? recentExpenses;
+    private List<Category> categories = [];
+    private bool isQuickAddOpen;
+    private bool isSavingQuickAdd;
+    private string quickExpenseName = string.Empty;
+    private DateTime quickExpenseDate = DateTime.Today;
+    private int quickExpenseCategoryId;
+    private decimal? quickExpenseAmount;
+    private string statusMessage = string.Empty;
+    private bool isStatusError;
+    private int statusMessageVersion;
+    private bool isDisposed;
+
+    private IEnumerable<Category> AvailableCategories =>
+        categories.Where(category => !IsSystemCategory(category));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += HandleLocationChanged;
+        await LoadCategoriesAsync();
+        ResetQuickAddForm();
+        await RefreshDashboardAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RefreshDashboardAsync();
+    }
+
+    private async Task SelectRangeAsync(string option)
+    {
+        if (option == "Okres")
+        {
+            isCustomRangePanelOpen = selectedRange != "Okres" || !isCustomRangePanelOpen;
+            selectedRange = option;
+            await RefreshDashboardAsync();
+            return;
+        }
+
+        isCustomRangePanelOpen = false;
+        selectedRange = option;
+        await RefreshDashboardAsync();
+    }
+
+    private async Task OnCustomRangeChangedAsync()
+    {
+        selectedRange = "Okres";
+        isCustomRangePanelOpen = true;
+        await RefreshDashboardAsync();
+    }
+
+    private async Task RefreshDashboardAsync()
+    {
+        var today = DateTime.Today;
+        var (startDate, endDate, description) = GetRangeDates(selectedRange, today);
+        selectedRangeDescription = description;
+
+        await LoadIncomeSummaryAsync(startDate, endDate);
+        await LoadExpenseSummaryAsync(startDate, endDate);
+    }
+
+    private async Task LoadIncomeSummaryAsync(DateTime startDate, DateTime endDate)
+    {
+        var startDateValue = startDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var endDateValue = endDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var refreshToken = DateTime.UtcNow.Ticks;
+
+        try
+        {
+            var summary = await Http.GetFromJsonAsync<IncomeSummaryResponse>(
+                $"api/income/summary?startDate={startDateValue}&endDate={endDateValue}&refresh={refreshToken}");
+
+            incomeTotal = summary?.TotalIncome ?? 0m;
+        }
+        catch
+        {
+            incomeTotal = 0m;
+        }
+
+        UpdateDashboardTotals();
+
+        if (!isDisposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadExpenseSummaryAsync(DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            var expenses = await LoadExpensesForRangeAsync(startDate, endDate);
+            expenseTotal = expenses.Sum(expense => expense.Amount);
+            recentExpenses = expenses
+                .OrderByDescending(expense => expense.CreatedAt)
+                .ThenByDescending(expense => expense.Id)
+                .Take(RecentExpensesLimit)
+                .ToList();
+        }
+        catch
+        {
+            expenseTotal = 0m;
+            recentExpenses = [];
+        }
+
+        UpdateDashboardTotals();
+
+        if (!isDisposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task<List<ExpenseDto>> LoadExpensesForRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        var expenses = new List<ExpenseDto>();
+
+        foreach (var monthKey in GetMonthKeys(startDate, endDate))
+        {
+            var budget = await Http.GetFromJsonAsync<BudgetDetailsResponse>($"api/budget/by-month/{monthKey}");
+
+            if (budget?.Expenses is not null)
+            {
+                expenses.AddRange(budget.Expenses.Where(expense =>
+                    expense.CreatedAt.Date >= startDate.Date
+                    && expense.CreatedAt.Date <= endDate.Date));
+            }
+        }
+
+        return expenses;
+    }
+
+    private void UpdateDashboardTotals()
+    {
+        formattedBalance = FormatCurrency(incomeTotal - expenseTotal);
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            categories = await Http.GetFromJsonAsync<List<Category>>("api/budget/categories") ?? [];
+        }
+        catch
+        {
+            categories = [];
+        }
+
+        quickExpenseCategoryId = NormalizeEditableCategoryId(quickExpenseCategoryId);
+
+        if (quickExpenseCategoryId == 0)
+        {
+            quickExpenseCategoryId = GetDefaultExpenseCategoryId();
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var relativePath = Navigation.ToBaseRelativePath(e.Location);
+        if (!string.IsNullOrWhiteSpace(relativePath))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(RefreshDashboardAsync);
+    }
+
+    private async Task HandleQuickAddAsync()
+    {
+        ClearStatusMessage();
+        await LoadCategoriesAsync();
+        ResetQuickAddForm();
+        isQuickAddOpen = true;
+    }
+
+    private void CloseQuickAdd()
+    {
+        if (isSavingQuickAdd)
+        {
+            return;
+        }
+
+        isQuickAddOpen = false;
+    }
+
+    private void ResetQuickAddForm()
+    {
+        quickExpenseName = string.Empty;
+        quickExpenseDate = DateTime.Today;
+        quickExpenseAmount = null;
+        quickExpenseCategoryId = GetDefaultExpenseCategoryId();
+    }
+
+    private static bool IsSystemCategory(Category category)
+    {
+        return category.IsSystem
+            || category.Id == 0
+            || string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    private int GetDefaultExpenseCategoryId()
+    {
+        return AvailableCategories.FirstOrDefault()?.Id ?? 0;
+    }
+
+    private int NormalizeEditableCategoryId(int categoryId)
+    {
+        return categoryId > 0 && AvailableCategories.Any(category => category.Id == categoryId)
+            ? categoryId
+            : 0;
+    }
+
+    private async Task<int> GetBudgetIdForExpenseMonthAsync(DateTime expenseDate)
+    {
+        var effectiveDate = expenseDate == default
+            ? DateTime.Today
+            : expenseDate.Date;
+        var monthKey = effectiveDate.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        try
+        {
+            var budget = await Http.GetFromJsonAsync<BudgetDetailsResponse>($"api/budget/month/{monthKey}");
+            return budget?.Id ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task SaveQuickExpenseAsync()
+    {
+        ClearStatusMessage();
+
+        if (!AvailableCategories.Any())
+        {
+            await ShowStatusMessageAsync("Brak dostępnych kategorii.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(quickExpenseName))
+        {
+            await ShowStatusMessageAsync("Nazwa jest wymagana.", true);
+            return;
+        }
+
+        if (quickExpenseName.Length > 100)
+        {
+            await ShowStatusMessageAsync("Nazwa nie może być dłuższa niż 100 znaków.", true);
+            return;
+        }
+
+        quickExpenseCategoryId = NormalizeEditableCategoryId(quickExpenseCategoryId);
+        if (quickExpenseCategoryId == 0)
+        {
+            quickExpenseCategoryId = GetDefaultExpenseCategoryId();
+        }
+
+        if (quickExpenseCategoryId == 0)
+        {
+            await ShowStatusMessageAsync("Wybierz kategorię.", true);
+            return;
+        }
+
+        if (!quickExpenseAmount.HasValue)
+        {
+            await ShowStatusMessageAsync("Kwota jest wymagana.", true);
+            return;
+        }
+
+        if (!await ValidateExpenseAmountAsync(quickExpenseAmount.Value))
+        {
+            return;
+        }
+
+        isSavingQuickAdd = true;
+
+        try
+        {
+            var budgetId = await GetBudgetIdForExpenseMonthAsync(quickExpenseDate);
+            if (budgetId == 0)
+            {
+                await ShowStatusMessageAsync("Nie udało się przygotować miesiąca dla wydatku.", true);
+                return;
+            }
+
+            var request = new AddExpenseRequest
+            {
+                Name = quickExpenseName.Trim(),
+                CreatedAt = quickExpenseDate,
+                Amount = quickExpenseAmount.Value,
+                CategoryId = quickExpenseCategoryId
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/budget/{budgetId}/expense", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                isSavingQuickAdd = false;
+                await InvokeAsync(StateHasChanged);
+                await ShowStatusMessageAsync(
+                    string.IsNullOrWhiteSpace(errorMessage) ? "Nie udało się dodać wydatku." : errorMessage,
+                    true);
+                return;
+            }
+
+            isQuickAddOpen = false;
+            ResetQuickAddForm();
+            await RefreshDashboardAsync();
+            await ShowStatusMessageAsync("Wydatek został dodany.", false);
+        }
+        catch
+        {
+            isSavingQuickAdd = false;
+            await InvokeAsync(StateHasChanged);
+            await ShowStatusMessageAsync("Wystąpił błąd podczas dodawania wydatku.", true);
+        }
+        finally
+        {
+            isSavingQuickAdd = false;
+
+            if (!isDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task<bool> ValidateExpenseAmountAsync(decimal value)
+    {
+        if (value < MinExpenseAmount)
+        {
+            await ShowStatusMessageAsync("Kwota musi być większa lub równa 0.01 PLN.", true);
+            return false;
+        }
+
+        if (value > MaxExpenseAmount)
+        {
+            await ShowStatusMessageAsync("Kwota nie może być większa niż 999999999 PLN.", true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task ShowStatusMessageAsync(string message, bool isError)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        statusMessageVersion++;
+        var version = statusMessageVersion;
+        statusMessage = message;
+        isStatusError = isError;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2500);
+
+        if (!isDisposed && version == statusMessageVersion)
+        {
+            statusMessage = string.Empty;
+            isStatusError = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ClearStatusMessage()
+    {
+        statusMessageVersion++;
+        statusMessage = string.Empty;
+        isStatusError = false;
+    }
+
+    private bool IsCustomRangePanelOpen => selectedRange == "Okres" && isCustomRangePanelOpen;
+
+    private (DateTime StartDate, DateTime EndDate, string Description) GetRangeDates(string option, DateTime today)
+    {
+        var currentDate = today.Date;
+        var culture = new CultureInfo("pl-PL");
+
+        return option switch
+        {
+            "Dzień" => (currentDate, currentDate, $"Dzisiaj, {currentDate.ToString("d MMMM yyyy", culture)}"),
+            "Tydzień" => GetCurrentWeekRange(currentDate),
+            "Miesiąc" => GetCurrentMonthRange(currentDate),
+            "Rok" => GetCurrentYearRange(currentDate),
+            "Okres" => GetCustomRangeDates(),
+            _ => GetCurrentMonthRange(currentDate)
+        };
+    }
+
+    private (DateTime StartDate, DateTime EndDate, string Description) GetCustomRangeDates()
+    {
+        var startDate = customRangeStartDate.Date;
+        var endDate = customRangeEndDate.Date;
+
+        if (startDate > endDate)
+        {
+            (startDate, endDate) = (endDate, startDate);
+        }
+
+        return (startDate, endDate, $"Okres: {startDate:dd.MM.yyyy} - {endDate:dd.MM.yyyy}");
+    }
+
+    private static (DateTime StartDate, DateTime EndDate, string Description) GetCurrentWeekRange(DateTime currentDate)
+    {
+        var daysSinceMonday = ((int)currentDate.DayOfWeek + 6) % 7;
+        var startDate = currentDate.AddDays(-daysSinceMonday);
+        var endDate = startDate.AddDays(6);
+        var culture = new CultureInfo("pl-PL");
+        var rangeText = startDate.Month == endDate.Month && startDate.Year == endDate.Year
+            ? $"{startDate.Day}-{endDate.Day} {endDate.ToString("MMMM yyyy", culture)}"
+            : startDate.Year == endDate.Year
+                ? $"{startDate.Day} {startDate.ToString("MMMM", culture)} - {endDate.Day} {endDate.ToString("MMMM yyyy", culture)}"
+                : $"{startDate.Day} {startDate.ToString("MMMM yyyy", culture)} - {endDate.Day} {endDate.ToString("MMMM yyyy", culture)}";
+
+        return (startDate, endDate, $"Tydzień: {rangeText}");
+    }
+
+    private static (DateTime StartDate, DateTime EndDate, string Description) GetCurrentMonthRange(DateTime currentDate)
+    {
+        var startDate = new DateTime(currentDate.Year, currentDate.Month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var culture = new CultureInfo("pl-PL");
+
+        return (startDate, endDate, currentDate.ToString("MMMM yyyy", culture));
+    }
+
+    private static (DateTime StartDate, DateTime EndDate, string Description) GetCurrentYearRange(DateTime currentDate)
+    {
+        var startDate = new DateTime(currentDate.Year, 1, 1);
+        var endDate = new DateTime(currentDate.Year, 12, 31);
+
+        return (startDate, endDate, $"Rok {currentDate.Year.ToString(CultureInfo.InvariantCulture)}");
+    }
+
+    private static IEnumerable<string> GetMonthKeys(DateTime startDate, DateTime endDate)
+    {
+        var currentMonth = new DateTime(startDate.Year, startDate.Month, 1);
+        var lastMonth = new DateTime(endDate.Year, endDate.Month, 1);
+
+        while (currentMonth <= lastMonth)
+        {
+            yield return currentMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+            currentMonth = currentMonth.AddMonths(1);
+        }
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return value.ToString("C", new CultureInfo("pl-PL"));
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+
+    private sealed class IncomeSummaryResponse
+    {
+        public decimal TotalIncome { get; set; }
+    }
+
+    private sealed class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public bool IsSystem { get; set; }
+    }
+}

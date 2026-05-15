@@ -1,10 +1,19 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        (() => {
+            try {
+                document.documentElement.dataset.theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+            } catch {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["MonthlyBudget.Web.styles.css"]" />
@@ -15,7 +24,7 @@
 
 <body>
     <Routes />
-    <script src="js/site.js"></script>
+    <script src="@Assets["js/site.js"]"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

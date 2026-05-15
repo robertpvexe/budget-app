@@ -1,0 +1,63 @@
+@page "/ustawienia"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject ThemeService ThemeService
+
+<PageTitle>Ustawienia</PageTitle>
+
+<div class="settings-page">
+    <section class="settings-card">
+        <div class="settings-header">
+            <h1>Ustawienia</h1>
+            <p>Wlacz ciemniejsza wersje aplikacji bez zmiany ukladu i stylu dzialania.</p>
+        </div>
+
+        <div class="settings-theme-toggle">
+            <label class="settings-theme-copy" for="dark-mode-toggle">
+                <span class="settings-theme-title">Dark mode</span>
+                <span class="settings-theme-description">Przyciemnia glowna tresc aplikacji, zachowujac obecny gradient sidebara.</span>
+            </label>
+
+            <span class="form-check form-switch settings-theme-switch">
+                <input id="dark-mode-toggle"
+                       class="form-check-input"
+                       type="checkbox"
+                       checked="@ThemeService.IsDarkMode"
+                       @onchange="OnDarkModeChanged" />
+            </span>
+        </div>
+    </section>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeService.ThemeChanged += HandleThemeChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await ThemeService.InitializeAsync();
+    }
+
+    private async Task OnDarkModeChanged(ChangeEventArgs args)
+    {
+        var isDarkMode = args.Value is bool value && value;
+        await ThemeService.SetDarkModeAsync(isDarkMode);
+    }
+
+    private void HandleThemeChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.ThemeChanged -= HandleThemeChanged;
+    }
+}

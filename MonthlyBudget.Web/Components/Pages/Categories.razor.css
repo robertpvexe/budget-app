@@ -9,14 +9,27 @@
 }
 
 .categories-card {
-    background: #ffffff;
-    border: 1px solid #d9e2ec;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-radius: 18px;
     padding: 1.35rem;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
 }
 
+.categories-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
 .categories-card-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.categories-card-main-content {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
@@ -44,7 +57,6 @@
 
 .categories-card-form {
     width: 100%;
-    margin-top: auto;
     padding-top: 1.15rem;
     padding-bottom: 1.15rem;
 }
@@ -53,15 +65,15 @@
 .categories-list-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
+    gap: 0.85rem;
     align-items: center;
 }
 
 .categories-list-header {
     margin-bottom: 0.75rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e4ebf3;
-    color: #425466;
+    border-bottom: 1px solid var(--app-border-soft);
+    color: var(--app-text-muted);
     font-size: 0.95rem;
     font-weight: 600;
 }
@@ -72,7 +84,7 @@
 
 .categories-loading {
     margin: 0;
-    color: #66758a;
+    color: var(--app-text-muted);
 }
 
 .categories-list {
@@ -82,8 +94,9 @@
 }
 
 .categories-list-item {
-    padding: 0.9rem 0;
-    border-bottom: 1px solid #edf2f7;
+    min-height: 2.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--app-border-soft);
 }
 
 .categories-list-item:last-child {
@@ -94,6 +107,8 @@
 .categories-name {
     min-width: 0;
     overflow: hidden;
+    font-size: 0.95rem;
+    line-height: 1.35;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
@@ -101,8 +116,16 @@
 .categories-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: 0.4rem;
     flex-wrap: wrap;
+}
+
+.categories-actions .btn {
+    min-width: 4.5rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.85rem;
+    line-height: 1.2;
 }
 
 .categories-edit-field {
@@ -111,6 +134,8 @@
 
 .categories-edit-input {
     max-width: 100%;
+    min-height: 2rem;
+    font-size: 0.95rem;
 }
 
 .categories-form-row {
@@ -135,12 +160,63 @@
     white-space: nowrap;
 }
 
+.categories-pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+.categories-pagination-pages {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.categories-page-button {
+    min-width: 2.1rem;
+    height: 2.1rem;
+    padding: 0 0.55rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    font-weight: 600;
+    transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.categories-page-button:hover:not(:disabled) {
+    border-color: var(--app-border-strong);
+    background: var(--app-surface-soft);
+}
+
+.categories-page-button-active {
+    border-color: var(--app-border-strong);
+    background: var(--app-surface-soft);
+}
+
+.categories-page-button:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
 @media (max-width: 768px) {
     .categories-form-row {
         grid-template-columns: 1fr;
     }
 
+    .categories-toolbar {
+        grid-template-columns: 1fr;
+    }
+
     .categories-form-action {
         justify-content: flex-start;
+    }
+
+    .categories-pagination {
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 }

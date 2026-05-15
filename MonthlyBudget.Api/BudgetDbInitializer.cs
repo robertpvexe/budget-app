@@ -11,6 +11,7 @@ public static class BudgetDbInitializer
 
         await dbContext.Database.MigrateAsync();
         await SeedCategoriesAsync(dbContext);
+        await NormalizeIncomeEntriesAsync(dbContext);
     }
 
     private static async Task SeedCategoriesAsync(BudgetDbContext dbContext)
@@ -19,7 +20,8 @@ public static class BudgetDbInitializer
             .OrderBy(category => category.Id)
             .ToListAsync();
 
-        var isCategoryTableEmpty = existingCategories.Count == 0;
+        var shouldSeedStarterCategories = !existingCategories.Any(category =>
+            !category.IsSystem && !CategoryDefaults.IsNoCategoryName(category.Name));
         var hasChanges = false;
         var existingNames = new HashSet<string>(
             existingCategories.Select(category => category.Name),
@@ -45,7 +47,7 @@ public static class BudgetDbInitializer
             hasChanges = true;
         }
 
-        if (isCategoryTableEmpty)
+        if (shouldSeedStarterCategories)
         {
             foreach (var categoryName in CategoryDefaults.StarterCategoryNames)
             {
@@ -69,5 +71,25 @@ public static class BudgetDbInitializer
         {
             await dbContext.SaveChangesAsync();
         }
+    }
+
+    private static async Task NormalizeIncomeEntriesAsync(BudgetDbContext dbContext)
+    {
+        var invalidEntries = await dbContext.IncomeEntries
+            .Where(entry => entry.Date == default || entry.Date.Year <= 1)
+            .ToListAsync();
+
+        if (invalidEntries.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedDate = DateTime.Today;
+        foreach (var entry in invalidEntries)
+        {
+            entry.Date = normalizedDate;
+        }
+
+        await dbContext.SaveChangesAsync();
     }
 }

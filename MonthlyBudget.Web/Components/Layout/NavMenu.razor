@@ -1,29 +1,78 @@
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<div id="app-navmenu" class="navmenu-shell expanded">
+    <div class="navmenu-top">
+        <div class="nav-scrollable">
+            <nav class="nav flex-column">
+                <div class="sidebar-header">
+                    <button type="button"
+                            class="sidebar-toggle"
+                            title="Przypnij lub odepnij panel"
+                            aria-label="Przypnij panel"
+                            aria-expanded="true"
+                            onclick="window.sidebarState.toggle()">
+                        <span class="sidebar-toggle-inner">
+                            <span class="bi bi-list-nav-menu" aria-hidden="true"></span>
+                        </span>
+                    </button>
+                    <span class="sidebar-brand">BudżetApp</span>
+                </div>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All" title="Strona główna">
+                        <span class="sidebar-item">
+                            <span class="sidebar-item-inner">
+                                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span>
+                                <span class="nav-link-text">Strona główna</span>
+                            </span>
+                        </span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="wydatki" title="Lista wydatków">
+                        <span class="sidebar-item">
+                            <span class="sidebar-item-inner">
+                                <span class="bi bi-receipt-nav-menu" aria-hidden="true"></span>
+                                <span class="nav-link-text">Lista wydatków</span>
+                            </span>
+                        </span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="categories" title="Kategorie">
+                        <span class="sidebar-item">
+                            <span class="sidebar-item-inner">
+                                <span class="bi bi-tags-nav-menu" aria-hidden="true"></span>
+                                <span class="nav-link-text">Kategorie</span>
+                            </span>
+                        </span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="konta" title="Konta">
+                        <span class="sidebar-item">
+                            <span class="sidebar-item-inner">
+                                <span class="bi bi-bank-nav-menu" aria-hidden="true"></span>
+                                <span class="nav-link-text">Konta</span>
+                            </span>
+                        </span>
+                    </NavLink>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="navmenu-bottom">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="ustawienia" title="Ustawienia">
+                <span class="sidebar-item">
+                    <span class="sidebar-item-inner">
+                        <span class="bi bi-settings-nav-menu" aria-hidden="true"></span>
+                        <span class="nav-link-text">Ustawienia</span>
+                    </span>
+                </span>
             </NavLink>
         </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="budzet">
-                <span class="bi bi-wallet2-nav-menu" aria-hidden="true"></span> Budżet
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="wydatki">
-                <span class="bi bi-wallet2-nav-menu" aria-hidden="true"></span> Lista wydatk&#243;w
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="categories">
-                <span class="bi bi-tags-nav-menu" aria-hidden="true"></span> Kategorie
-            </NavLink>
-        </div>
-    </nav>
+    </div>
 </div>

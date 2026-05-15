@@ -1,0 +1,81 @@
+.settings-page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    background: var(--app-bg);
+    color: var(--app-text);
+}
+
+.settings-card {
+    max-width: 760px;
+    border: 1px solid var(--app-border);
+    border-radius: 18px;
+    padding: 1.35rem;
+    background: var(--app-surface);
+    color: var(--app-text);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.settings-header {
+    margin-bottom: 1.25rem;
+}
+
+.settings-header h1 {
+    margin: 0 0 0.4rem;
+}
+
+.settings-header p {
+    margin: 0;
+    color: var(--app-text-muted);
+}
+
+.settings-theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    background: var(--app-surface-soft);
+}
+
+.settings-theme-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.settings-theme-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.settings-theme-description {
+    color: var(--app-text-muted);
+}
+
+.settings-theme-switch {
+    margin: 0;
+}
+
+.settings-theme-switch .form-check-input {
+    cursor: pointer;
+}
+
+.settings-theme-switch .form-check-input:not(:checked) {
+    background-color: var(--app-input-bg);
+    border-color: var(--app-border);
+}
+
+@media (max-width: 640.98px) {
+    .settings-theme-toggle {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

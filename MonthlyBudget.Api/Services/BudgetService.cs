@@ -56,31 +56,6 @@ public class BudgetService : IBudgetService
         }
     }
 
-    public BudgetModel CreateMonthlyBudget(BudgetModel monthlyBudget)
-    {
-        lock (_lock)
-        {
-            var existingBudget = _budgets.FirstOrDefault(b => b.Month == monthlyBudget.Month);
-
-            if (existingBudget is not null)
-            {
-                return existingBudget;
-            }
-
-            var budget = new BudgetModel
-            {
-                Id = _nextBudgetId++,
-                Month = monthlyBudget.Month,
-                Income = monthlyBudget.Income,
-                Expenses = []
-            };
-
-            _budgets.Add(budget);
-            SaveData();
-            return budget;
-        }
-    }
-
     public Expense AddExpense(int monthlyBudgetId, Expense expense)
     {
         lock (_lock)
@@ -104,7 +79,7 @@ public class BudgetService : IBudgetService
                 Id = _nextExpenseId++,
                 Name = expense.Name,
                 Amount = expense.Amount,
-                CreatedAt = DateTime.Now,
+                CreatedAt = expense.CreatedAt == default ? DateTime.Now : expense.CreatedAt,
                 CategoryId = category?.Id ?? CategoryDefaults.NoCategoryId,
                 Category = category,
                 MonthlyBudgetId = budget.Id,
@@ -294,23 +269,6 @@ public class BudgetService : IBudgetService
         }
     }
 
-    public bool UpdateIncome(int id, decimal income)
-    {
-        lock (_lock)
-        {
-            var budget = _budgets.FirstOrDefault(b => b.Id == id);
-
-            if (budget == null)
-                return false;
-
-            budget.Income = income;
-
-            SaveData();
-
-            return true;
-        }
-    }
-
     public BudgetModel? FilterBudget(int year, int month, int? categoryId, DateTime? from, DateTime? to)
     {
         var key = $"{year}-{month:D2}";
@@ -325,7 +283,6 @@ public class BudgetService : IBudgetService
         {
             Id = budget.Id,
             Month = budget.Month,
-            Income = budget.Income,
             Expenses = budget.Expenses
                 .Select(e => new Expense
                 {
@@ -418,7 +375,6 @@ public class BudgetService : IBudgetService
         {
             Id = budget.Id,
             Month = budget.Month,
-            Income = budget.Income,
             Expenses = budget.Expenses
                 .Select(expense => new Expense
                 {
@@ -460,7 +416,6 @@ public class BudgetService : IBudgetService
         {
             Id = _nextBudgetId++,
             Month = yearMonth,
-            Income = 0,
             Expenses = []
         };
 

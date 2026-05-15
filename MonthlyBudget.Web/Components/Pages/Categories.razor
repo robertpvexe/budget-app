@@ -1,12 +1,49 @@
 @page "/categories"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @inject HttpClient Http
 @inject IJSRuntime JS
 
 <PageTitle>Kategorie</PageTitle>
 
 <div class="categories-page">
+    <div class="categories-toolbar">
+    <section class="categories-card categories-card-form">
+        <div class="categories-form-row">
+            <div class="categories-form-field">
+                <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" maxlength="50" />
+                @if (newCategoryName?.Length > 50)
+                {
+                    <div class="text-danger small">Maksymalnie 50 znaków</div>
+                }
+            </div>
+
+            <div class="categories-form-action">
+                <button type="button" class="btn btn-primary categories-submit" @onclick="AddCategory">Dodaj</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="categories-card categories-card-form">
+        <div class="categories-form-row">
+            <div class="categories-form-field">
+                <input @bind="categorySearchTerm"
+                       @bind:event="oninput"
+                       @bind:after="OnCategorySearchChanged"
+                       placeholder="Podaj nazwę"
+                       class="form-control"
+                       maxlength="50" />
+            </div>
+
+            <div class="categories-form-action">
+                <button type="button" class="btn btn-primary categories-submit" @onclick="ApplyCategorySearch">Szukaj</button>
+            </div>
+        </div>
+    </section>
+    </div>
+
     <section class="categories-card categories-card-main">
+        <div class="categories-card-main-content" @ref="adaptivePaginationContainer">
         @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
             <div class="categories-status @(isStatusError ? "categories-status-error" : "categories-status-success")">
@@ -26,7 +63,7 @@
         else
         {
             <ul class="categories-list">
-                @foreach (var category in categories)
+                @foreach (var category in PagedCategories)
                 {
                     var isEditing = editingCategoryId == category.Id;
                     var isProtected = IsProtectedCategory(category);
@@ -68,42 +105,120 @@
                     </li>
                 }
             </ul>
+
+            @if (ShouldShowPagination)
+            {
+                <div class="categories-pagination">
+                    <button type="button"
+                            class="categories-page-button categories-pagination-nav"
+                            @onclick="GoToPreviousPage"
+                            disabled="@(CurrentPage <= 1)">
+                        Poprzednia
+                    </button>
+
+                    <div class="categories-pagination-pages">
+                        @foreach (var pageNumber in PageNumbers)
+                        {
+                            <button type="button"
+                                    class="@GetPageButtonClass(pageNumber)"
+                                    @onclick="() => GoToPage(pageNumber)"
+                                    aria-current="@(pageNumber == CurrentPage ? "page" : null)">
+                                @pageNumber
+                            </button>
+                        }
+                    </div>
+
+                    <button type="button"
+                            class="categories-page-button categories-pagination-nav"
+                            @onclick="GoToNextPage"
+                            disabled="@(CurrentPage >= TotalPages)">
+                        Następna
+                    </button>
+                </div>
+            }
         }
-    </section>
-
-    <section class="categories-card categories-card-form">
-        <div class="categories-form-row">
-            <div class="categories-form-field">
-                <input @bind="newCategoryName" placeholder="Nowa kategoria" class="form-control" maxlength="50" />
-                @if (newCategoryName?.Length > 50)
-                {
-                    <div class="text-danger small">Maksymalnie 50 znaków</div>
-                }
-            </div>
-
-            <div class="categories-form-action">
-                <button type="button" class="btn btn-primary categories-submit" @onclick="AddCategory">Dodaj</button>
-            </div>
         </div>
     </section>
 </div>
 
 @code {
+    private const int DefaultPageSize = 13;
+    private const int MinAdaptivePageSize = 6;
+    private const int MaxAdaptivePageSize = 100;
+
     private List<Category>? categories;
     private string newCategoryName = string.Empty;
     private int? editingCategoryId;
     private string editingCategoryName = string.Empty;
+    private string categorySearchTerm = string.Empty;
     private string statusMessage = string.Empty;
     private bool isStatusError;
+    private int currentPage = 1;
+    private int pageSize = DefaultPageSize;
+    private ElementReference adaptivePaginationContainer;
+    private AdaptivePageSizer? adaptivePageSizer;
+    private bool isAdaptivePageSizerRegistered;
+
+    private int PageSize => Math.Clamp(pageSize, MinAdaptivePageSize, MaxAdaptivePageSize);
+
+    private IEnumerable<Category> VisibleCategories => categories?
+        .Where(category => !IsProtectedCategory(category))
+        .Where(MatchesCategorySearch) ?? Enumerable.Empty<Category>();
+
+    private IEnumerable<Category> PagedCategories => VisibleCategories
+        .Skip((CurrentPage - 1) * PageSize)
+        .Take(PageSize);
+
+    private int VisibleCategoryCount => VisibleCategories.Count();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(VisibleCategoryCount / (double)PageSize));
+    private int CurrentPage => Math.Clamp(currentPage, 1, TotalPages);
+    private bool ShouldShowPagination => VisibleCategoryCount > PageSize;
+    private IEnumerable<int> PageNumbers => Enumerable.Range(1, TotalPages);
 
     protected override async Task OnInitializedAsync()
     {
         await LoadCategories();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await EnsureAdaptivePageSizerRegisteredAsync();
+    }
+
+    private async Task EnsureAdaptivePageSizerRegisteredAsync()
+    {
+        if (isAdaptivePageSizerRegistered || categories is null)
+        {
+            return;
+        }
+
+        adaptivePageSizer = new AdaptivePageSizer(JS, OnAdaptivePageSizeChangedAsync);
+        await adaptivePageSizer.RegisterAsync(
+            adaptivePaginationContainer,
+            ".categories-list-item",
+            new AdaptivePageSizerOptions
+            {
+                MinItems = MinAdaptivePageSize,
+                MaxItems = MaxAdaptivePageSize,
+                FallbackItemHeight = 44,
+                ReservedSelector = ".categories-pagination",
+                UseViewportBottom = true
+            });
+
+        isAdaptivePageSizerRegistered = true;
+    }
+
+    private async Task OnAdaptivePageSizeChangedAsync(int nextPageSize)
+    {
+        pageSize = nextPageSize;
+        EnsureCurrentPageInRange();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task LoadCategories()
     {
         categories = await Http.GetFromJsonAsync<List<Category>>("http://localhost:5226/api/Budget/categories") ?? new();
+        EnsureCurrentPageInRange();
     }
 
     private async Task AddCategory()
@@ -212,6 +327,49 @@
         await LoadCategories();
     }
 
+    private void GoToPreviousPage()
+    {
+        if (CurrentPage > 1)
+        {
+            currentPage = CurrentPage - 1;
+        }
+    }
+
+    private void GoToNextPage()
+    {
+        if (CurrentPage < TotalPages)
+        {
+            currentPage = CurrentPage + 1;
+        }
+    }
+
+    private void GoToPage(int pageNumber)
+    {
+        currentPage = Math.Clamp(pageNumber, 1, TotalPages);
+    }
+
+    private void OnCategorySearchChanged()
+    {
+        currentPage = 1;
+    }
+
+    private void ApplyCategorySearch()
+    {
+        currentPage = 1;
+    }
+
+    private string GetPageButtonClass(int pageNumber)
+    {
+        return pageNumber == CurrentPage
+            ? "categories-page-button categories-page-button-active"
+            : "categories-page-button";
+    }
+
+    private void EnsureCurrentPageInRange()
+    {
+        currentPage = Math.Clamp(currentPage, 1, TotalPages);
+    }
+
     private async Task ShowErrorAsync(string message)
     {
         statusMessage = message;
@@ -225,10 +383,24 @@
         isStatusError = false;
     }
 
+    private bool MatchesCategorySearch(Category category)
+    {
+        return string.IsNullOrWhiteSpace(categorySearchTerm)
+            || category.Name.Contains(categorySearchTerm.Trim(), StringComparison.CurrentCultureIgnoreCase);
+    }
+
     private static bool IsProtectedCategory(Category category)
     {
         return category.IsSystem
             || string.Equals(category.Name, "Brak kategorii", StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (adaptivePageSizer is not null)
+        {
+            await adaptivePageSizer.DisposeAsync();
+        }
     }
 
     public class Category
